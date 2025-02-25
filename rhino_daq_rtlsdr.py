@@ -60,15 +60,20 @@ class Thermomotry:
     
     def get_temperature_from_line(self, line):
         line = line.split(',')
+        t_1 = line[0].split(':')
+        t_1 = float(t_1[-1])
+        t_2 = line[1].split(':')
+        t_2 = float(t_2[-1])
         ## change this for real format
-        return line[-1]
+        return np.array([t_1, t_2])
 
     def read_temp(self):
         self.open()
         self.serial.reset_input_buffer()
         line = self.serial.readline().decode('utf-8')
-        temp = self.get_temperature_from_line(line)
-        return temp
+        
+        temps = self.get_temperature_from_line(line)
+        return temps
     
     def close(self):
         if self.serial:
@@ -101,7 +106,7 @@ class RtlSdrLogger:
     
     def get_avg_spectra(self):
         spectra = []
-        for i in self.num_rows_to_average:
+        for i in np.arange(self.num_rows_to_average):
             x = self.sdr.read_samples(self.fft_length) * self.fft_filter
             spectra.append(np.abs(np.fft.fft(x))**2)
         spectra = np.array(spectra)
@@ -154,6 +159,55 @@ class Switches:
         self.serial = None
 
 
+class Switch_Thermometry:
+    def __init__(self, com_port, baud_rate, switch_dictionary):
+        self.com_port, self.baud_rate = com_port, baud_rate
+        self.switch_dict = switch_dictionary
+        self.serial = serial.Serial(self.com_port, self.baud_rate)
+        pass
+
+    def open(self):
+        if self.serial is None:
+            self.serial = serial.Serial(self.com_port, self.baud_rate)
+        pass
+
+    def get_temperature_from_line(self, line):
+        line = line.split(',')
+        t_1 = line[0].split(':')
+        t_1 = float(t_1[-1])
+        t_2 = line[1].split(':')
+        t_2 = float(t_2[-1])
+        ## change this for real format
+        return np.array([t_1, t_2])
+
+    def read_temp(self):
+        self.open()
+        attempt = True
+        while attempt:
+            try:
+                self.serial.reset_input_buffer()
+                line = self.serial.readline().decode('utf-8')
+        
+                temps = self.get_temperature_from_line(line)
+                attempt = False
+            except:
+                pass
+        
+
+        return temps
+    
+    def set_switch_state(self, switch_cmd):
+        self.open()
+        cmd = self.switch_dict[switch_cmd]
+        self.serial.write(cmd.encode())
+        time.sleep(0.5)
+        pass
+
+    def close(self):
+        if self.serial:
+            self.serial.close()
+        self.serial = None
+
 class MultiFrequencyObserver:
     def __init__(self, thermometry, switches, 
                  freq_range=(60e6, 80e6), sample_rate = 2.0e6, averaging_time_per_sdr_sample = 10, 
@@ -170,19 +224,19 @@ class MultiFrequencyObserver:
         self.obs_time_split = obs_time_split
         self.save_folder = save_folder
 
-        self.centre_frequencies = np.linspace(freq_range[0], freq_range[-1], int(freq_range[-1] - freq_range[0] / sample_rate))
-
+        self.centre_frequencies = np.linspace(freq_range[0], freq_range[-1],int((freq_range[-1] - freq_range[0]) / sample_rate)+1)
+        
         pass
 
     def get_sol_measurements(self, start_f, end_f, nint):
         vna = VNA()
-        self.switch.set_switch_state('vna_short')
+        self.switches.set_switch_state('vna_short')
         short_s11, _, vna_freqs = vna.get_s11_measurements(min_freq=start_f, max_freq=end_f,n_integrations=nint)
 
-        self.switch.set_switch_state('vna_open')
+        self.switches.set_switch_state('vna_open')
         open_s11, _, _ = vna.get_s11_measurements(min_freq=start_f, max_freq=end_f,n_integrations=nint)
 
-        self.switch.set_switch_state('vna_load')
+        self.switches.set_switch_state('vna_load')
         load_s11, _, _ = vna.get_s11_measurements(min_freq=start_f, max_freq=end_f,n_integrations=nint)
         sol_f_array = np.array([short_s11, open_s11, load_s11, vna_freqs])
         return sol_f_array
@@ -192,8 +246,8 @@ class MultiFrequencyObserver:
         
 
     def begin_observations(self, obs_title=None):
-        date_string = datetime.strftime("%Y_%m_%d_%H%M%S", datetime.now())
-        time_string = datetime.strftime("%H%M%S", datetime.now())
+        date_string = datetime.now().strftime("%Y_%m_%d")
+        time_string = datetime.now().strftime("%H%M%S")
         save_file = h5py.File(self.save_folder+date_string+".hdf5" ,'a')
         int_time_per_freq = timedelta(seconds=self.integration_time_per_frequency)
         epoch = datetime.now()
@@ -205,7 +259,7 @@ class MultiFrequencyObserver:
             # add in option to check if group exists and add_1 to the name
 
         for cf in self.centre_frequencies:
-            freq_string = 'f'+str(self.centre_frequencies / 10**6)
+            freq_string = 'f'+str(cf / 10**6)
             freq_group = obs_group.create_group(freq_string)
             sdr = RtlSdrLogger(self.averaging_time_per_sdr_sample, self.sample_rate, cf,
                                fft_length=self.fft_length, sdr_gain_set = self.sdr_gain,
@@ -216,20 +270,23 @@ class MultiFrequencyObserver:
 
             self.switches.set_switch_state('vna_antenna')
             vna = VNA()
-            antenna_s11, _, vna_freqs = vna.get_s11_measurements(start_f=cf-self.sample_rate/2, end_f=cf+self.sample_rate/2, nint=10)
+            antenna_s11, _, vna_freqs = vna.get_s11_measurements(min_freq=cf-self.sample_rate/2, max_freq=cf+self.sample_rate/2,
+                                                                 n_integrations=10)
             freq_group.create_dataset('s11_ant',data=antenna_s11)
 
             self.switches.set_switch_state('vna_load_term')
-            load_s11,_,_ = vna.get_s11_measurements(start_f=cf-self.sample_rate/2, end_f=cf+self.sample_rate/2, nint=10)
+            load_s11,_,_ = vna.get_s11_measurements(min_freq=cf-self.sample_rate/2, max_freq=cf+self.sample_rate/2,
+                                                    n_integrations=10)
             freq_group.create_dataset('s11_load',data=load_s11)
 
             self.switches.set_switch_state('vna_noise_diode')
-            noise_diode_s11,_,_ = vna.get_s11_measurements(start_f=cf-self.sample_rate/2, end_f=cf+self.sample_rate/2, nint=10)
+            noise_diode_s11,_,_ = vna.get_s11_measurements(min_freq=cf-self.sample_rate/2, max_freq=cf+self.sample_rate/2,
+                                                            n_integrations=10)
             freq_group.create_dataset('s11_noise_diode',data=noise_diode_s11)
             freq_group.create_dataset('s11_vna_freqs', data=vna_freqs)
 
             t_0 = datetime.now()
-            obs_switch_states = ["rec_antenna", "rec_load", "rec_noise_diode"]
+            obs_switch_states = ["rec_antenna", "rec_load_term", "rec_noise_diode"]
 
             sdr.init_sdr()
 
@@ -279,24 +336,31 @@ class MultiFrequencyObserver:
             t_ds.attrs['epoch'] = epcoh_string
             st_ds.attrs['epoch'] = epcoh_string
             for switch_state in np.arange(len(obs_switch_states)):
-                st_ds.attrs['switch_state_'+int(switch_state)] = obs_switch_states[switch_state]
-            
-            freq_group
+                st_ds.attrs['switch_state_'+str(int(switch_state))] = obs_switch_states[switch_state]
+            print(str(cf)+' done...')
 
         save_file.close()
         pass
 
 if __name__ == '__main__':
-    switch_dictionary = {}
-    switch = Switches(com_port='switch_port', baud_rate=111, switch_dictionary=switch_dictionary)
-    thermomotry =  Thermomotry(com_port='temp_sens_port', baud_rate=111)
+    switch_dictionary = {"vna_short":"1_7",
+                        "vna_load":"1_6",
+                        "vna_open":"1_3",
+                        "vna_antenna":"1_1",
+                        "vna_load_term":"1_2",
+                        "vna_noise_diode":"1_5",
+                        "rec_antenna":"2_1",
+                        "rec_load_term":"2_2",
+                        "rec_noise_diode":"2_5",
+                        }
+    switch_thermo = Switch_Thermometry(com_port='COM3', baud_rate=115200, switch_dictionary=switch_dictionary)
 
-    observer = MultiFrequencyObserver(thermometry=thermomotry, switches=switch, freq_range=(60e6, 80e6), 
-                                      sample_rate=2e6, averaging_time_per_sdr_sample=1, fft_length=2048, sdr_gain=0.0,
-                                      spectrum_window='Blackman', integration_time_per_frequency=60, obs_time_split=[1/3,1/3,1/3],
+    observer = MultiFrequencyObserver(thermometry=switch_thermo, switches=switch_thermo, freq_range=(60e6, 80e6), 
+                                      sample_rate=2.0e6, averaging_time_per_sdr_sample=1, fft_length=2048, sdr_gain=0.0,
+                                      spectrum_window='Blackman', integration_time_per_frequency=300, obs_time_split=[1/3,1/3,1/3],
                                       save_folder='')
-    
-    observer.begin_observations('test')
+   
+    observer.begin_observations()
 
 
 
