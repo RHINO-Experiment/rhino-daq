@@ -16,6 +16,7 @@ class VNA:
     def get_s11_measurements(self, min_freq=60e6, max_freq=80e6, n_integrations=5):
         vna = nanovna.NanoVNA(nanovna.getport())
         vna.open()
+        vna.resume()
         vna.set_frequencies(start=min_freq, stop=max_freq)
         vna.set_sweep(start=min_freq, stop=max_freq)
         scans = [vna.scan() for i in np.arange(n_integrations)]
@@ -26,6 +27,7 @@ class VNA:
             scan_s11.append(s11)
         scan_s11 = np.array(scan_s11)
         scan_s11_mean, scan_s11_std = np.mean(scan_s11, axis=0), np.std(scan_s11, axis=0)
+        vna.pause()
         
     
         return scan_s11_mean, scan_s11_std, vna.frequencies
@@ -361,7 +363,3 @@ if __name__ == '__main__':
                                       save_folder='')
    
     observer.begin_observations()
-
-
-
-
