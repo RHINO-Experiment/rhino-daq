@@ -268,24 +268,28 @@ class MultiFrequencyObserver:
                                window_function=self.spectrum_window, averaging=True)
             
             solf_array = self.get_sol_measurements(start_f=cf-self.sample_rate/2, end_f=cf+self.sample_rate/2, nint=10)
-            freq_group.create_dataset('sol_f_arr',data=solf_array)
+            freq_group.create_dataset('sol_f_arr', data=solf_array, dtype=solf_array.dtype)
 
             self.switches.set_switch_state('vna_antenna')
             vna = VNA()
             antenna_s11, _, vna_freqs = vna.get_s11_measurements(min_freq=cf-self.sample_rate/2, max_freq=cf+self.sample_rate/2,
                                                                  n_integrations=10)
-            freq_group.create_dataset('s11_ant',data=antenna_s11)
+            antenna_s11 = np.array(antenna_s11)
+            freq_group.create_dataset('s11_ant',data=antenna_s11, dtype=antenna_s11.dtype)
 
             self.switches.set_switch_state('vna_load_term')
             load_s11,_,_ = vna.get_s11_measurements(min_freq=cf-self.sample_rate/2, max_freq=cf+self.sample_rate/2,
                                                     n_integrations=10)
-            freq_group.create_dataset('s11_load',data=load_s11)
+            load_s11 = np.array(load_s11)
+            freq_group.create_dataset('s11_load',data=load_s11, dtype=load_s11.dtype)
 
             self.switches.set_switch_state('vna_noise_diode')
             noise_diode_s11,_,_ = vna.get_s11_measurements(min_freq=cf-self.sample_rate/2, max_freq=cf+self.sample_rate/2,
                                                             n_integrations=10)
-            freq_group.create_dataset('s11_noise_diode',data=noise_diode_s11)
-            freq_group.create_dataset('s11_vna_freqs', data=vna_freqs)
+            noise_diode_s11 = np.array(noise_diode_s11)
+            freq_group.create_dataset('s11_noise_diode', data=noise_diode_s11, dtype=noise_diode_s11.dtype)
+            vna_freqs = np.array(vna_freqs)
+            freq_group.create_dataset('s11_vna_freqs', data=vna_freqs, dtype=vna_freqs.dtype)
 
             t_0 = datetime.now()
             obs_switch_states = ["rec_antenna", "rec_load_term", "rec_noise_diode"]
@@ -324,16 +328,19 @@ class MultiFrequencyObserver:
             
             spectra = np.array(spectra)
             frequencies = np.linspace(cf-self.sample_rate/2, cf+self.sample_rate/2, num=self.fft_length)
+            frequencies = np.array(frequencies)
             temperatures = np.array(temperatures)
             times = [(t - epoch).total_seconds() for t in times]
+            times = np.array(times)
             switch_times_real = [(t - epoch).total_seconds() for t in switch_times_real]
-            epcoh_string = epoch.strftime('%Y_%m_%d_%H%M%S')
+            switch_times_real = np.array(switch_times_real)
+            epcoh_string = str(epoch.strftime('%Y_%m_%d_%H%M%S'))
 
-            freq_group.create_dataset('spectra', data=spectra)
-            freq_group.create_dataset('spectra_frequencies', data=frequencies)
-            t_ds = freq_group.create_dataset('times', data=times)
-            st_ds = freq_group.create_dataset('switch_times', data=switch_times_real)
-            freq_group.create_dataset('temperatures', data=temperatures)
+            freq_group.create_dataset('spectra', data=spectra, dtype=spectra.dtype)
+            freq_group.create_dataset('spectra_frequencies', data=frequencies, dtype=frequencies.dtype)
+            t_ds = freq_group.create_dataset('times', data=times, dtype=times.dtype)
+            st_ds = freq_group.create_dataset('switch_times', data=switch_times_real, dtype=switch_times_real.dtype)
+            freq_group.create_dataset('temperatures', data=temperatures, dtype=temperatures.dtype)
 
             t_ds.attrs['epoch'] = epcoh_string
             st_ds.attrs['epoch'] = epcoh_string
