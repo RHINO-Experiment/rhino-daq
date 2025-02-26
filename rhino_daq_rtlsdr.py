@@ -35,6 +35,7 @@ class VNA:
     def get_s12_measurements(self, min_freq=60e6, max_freq=80e6, n_integrations=5):
         vna = nanovna.NanoVNA(nanovna.getport())
         vna.open()
+        vna.resume()
         vna.set_frequencies(start=min_freq, stop=max_freq)
         vna.set_sweep(start=min_freq, stop=max_freq)
         scans = [vna.scan() for i in np.arange(n_integrations)]
@@ -45,7 +46,7 @@ class VNA:
             scan_s12.append(s12)
         scan_s12 = np.array(scan_s12)
         scan_s12_mean, scan_s12_std = np.mean(scan_s12, axis=0), np.std(scan_s12, axis=0)
-        
+        vna.pause()
     
         return scan_s12_mean, scan_s12_std, vna.frequencies
 
