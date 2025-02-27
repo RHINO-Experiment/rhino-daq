@@ -16,6 +16,7 @@ class VNA:
     def get_s11_measurements(self, min_freq=60e6, max_freq=80e6, n_integrations=5):
         vna = nanovna.NanoVNA(nanovna.getport())
         vna.open()
+        time.sleep(0.1)
         vna.resume()
         vna.set_frequencies(start=min_freq, stop=max_freq)
         vna.set_sweep(start=min_freq, stop=max_freq)
@@ -27,6 +28,10 @@ class VNA:
             scan_s11.append(s11)
         scan_s11 = np.array(scan_s11)
         scan_s11_mean, scan_s11_std = np.mean(scan_s11, axis=0), np.std(scan_s11, axis=0)
+        time.sleep(0.1)
+
+        vna.set_sweep(start=50e6, stop=52e6)
+        vna.set_frequencies(start=50e6, stop=52e6)
         vna.pause()
         
     
@@ -288,6 +293,11 @@ class MultiFrequencyObserver:
             noise_diode_s11,_,_ = vna.get_s11_measurements(min_freq=cf-self.sample_rate/2, max_freq=cf+self.sample_rate/2,
                                                             n_integrations=10)
             noise_diode_s11 = np.array(noise_diode_s11)
+
+            rec_s11,_,_ = vna.get_s11_measurements(min_freq=cf-self.sample_rate/2, max_freq=cf+self.sample_rate/2,
+                                                            n_integrations=10)
+            rec_s11 = np.array(rec_s11)
+            freq_group.create_dataset('s11_rec', data=rec_s11, dtype=rec_s11.dtype)
             freq_group.create_dataset('s11_noise_diode', data=noise_diode_s11, dtype=noise_diode_s11.dtype)
             vna_freqs = np.array(vna_freqs)
             freq_group.create_dataset('s11_vna_freqs', data=vna_freqs, dtype=vna_freqs.dtype)
@@ -353,21 +363,22 @@ class MultiFrequencyObserver:
         pass
 
 if __name__ == '__main__':
-    switch_dictionary = {"vna_short":"1_7",
-                        "vna_load":"1_6",
-                        "vna_open":"1_3",
-                        "vna_antenna":"1_1",
-                        "vna_load_term":"1_2",
-                        "vna_noise_diode":"1_5",
-                        "rec_antenna":"2_1",
-                        "rec_load_term":"2_2",
-                        "rec_noise_diode":"2_5",
+    switch_dictionary = {"vna_short":"1_1_7",
+                        "vna_load":"1_1_6",
+                        "vna_open":"1_1_3",
+                        "vna_antenna":"1_1_1",
+                        "vna_load_term":"1_1_2",
+                        "vna_noise_diode":"1_1_5",
+                        "rec_antenna":"1_2_1",
+                        "rec_load_term":"1_2_2",
+                        "rec_noise_diode":"1_2_5",
+                        "vna_rec":"2_2_8"
                         }
     switch_thermo = Switch_Thermometry(com_port='COM3', baud_rate=115200, switch_dictionary=switch_dictionary)
 
     observer = MultiFrequencyObserver(thermometry=switch_thermo, switches=switch_thermo, freq_range=(60e6, 80e6), 
-                                      sample_rate=2.0e6, averaging_time_per_sdr_sample=1, fft_length=2048, sdr_gain=0.0,
-                                      spectrum_window='Blackman', integration_time_per_frequency=300, obs_time_split=[1/3,1/3,1/3],
+                                      sample_rate=2.0e6, averaging_time_per_sdr_sample=0.1, fft_length=2048, sdr_gain=0.0,
+                                      spectrum_window='Blackman', integration_time_per_frequency=30, obs_time_split=[1/3,1/3,1/3],
                                       save_folder='')
    
     observer.begin_observations()

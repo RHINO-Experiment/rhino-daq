@@ -2,15 +2,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 import h5py
 
-f = h5py.File(name= '2025_02_25.hdf5', mode='r')
+f = h5py.File(name= '2025_02_27.hdf5', mode='r')
 print(list(f.keys()))
-g = f['140612']
-sub_freq = g['f60.0']
+g = f[list(f.keys())[2]]
+sub_freq = g['f76.0']
 print(list(sub_freq.keys()))
 
 freqs = sub_freq['spectra_frequencies'][()]
 spectra = sub_freq['spectra'][()]
 
+plt.imshow(10*np.log10(spectra))
+plt.show()
 times = sub_freq['times'][()]
 switch_times = sub_freq['switch_times'][()]
 print(switch_times)
@@ -51,5 +53,6 @@ flat_q = np.array(flat_q)
 flat_f = np.array(flat_f)
 
 plt.plot(flat_f / 10**6, flat_q)
+plt.ylim(-0.1, 1)
 plt.show()
 
