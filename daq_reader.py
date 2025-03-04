@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import h5py
 
-f = h5py.File(name= '2025_02_27.hdf5', mode='r')
+f = h5py.File(name= '2025_03_04no_vna.hdf5', mode='r')
 print(list(f.keys()))
 g = f[list(f.keys())[3]]
 
@@ -18,8 +18,12 @@ for i in np.arange(len(list(g.keys()))):
     axes[i].set_ylabel('Time [s]')
 axes[np.arange(len(list(g.keys())))[-1]].set_xlabel(r'$\nu$ [MHz]')
 fig.tight_layout()
-#fig.savefig('Spectra_load_vna_on_shifted.pdf')
 plt.show()
+#fig.savefig('Spectra_load_vna_on_shifted.pdf')
+g = f['151851']
+sub_freq = g['f80.0']
+print(list(sub_freq.keys()))
+
 times = sub_freq['times'][()]
 switch_times = sub_freq['switch_times'][()]
 print(switch_times)
@@ -47,9 +51,6 @@ for cf in list(g.keys()):
 q_arr = np.array(q_arr)
 f_arr = np.array(f_arr)
 
-
-
-
 flat_q = q_arr.flatten()
 flat_f = f_arr.flatten()
 
@@ -62,5 +63,6 @@ flat_f = np.array(flat_f)
 plt.plot(flat_f / 10**6, flat_q, '-')
 plt.ylabel('q = src - load / noisediode - load')
 plt.xlabel(r'$\nu$ [MHz]')
-plt.ylim(-1,200)
 plt.show()
+
+
