@@ -6,7 +6,6 @@ from SoapySDR import * #SOAPY_SDR_ constants
 import numpy as np
 import argparse
 import h5py
-import matplotlib.pyplot as plt
 import sys, time
 import serial
 import nanovna
