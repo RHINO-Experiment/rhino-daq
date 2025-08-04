@@ -35,7 +35,7 @@ class SDRObserver:
         except:
             pass
     
-    def initialise(self):
+    def start_stream(self):
         self.nthin = 1
         self.nsamp = int(self.integration_time * self.sample_rate / self.fft_length)
         rx_chan = 0 # only 1 channel on RSP1A
@@ -53,8 +53,8 @@ class SDRObserver:
 
         self.status = self.sdr.activateStream(self.rxStream) #start streaming
         print("Stream MTU:", self.sdr.getStreamMTU(self.rxStream))
-        print("Activate status:", status)
-        print("Current gain:", sdr.getGain(SOAPY_SDR_RX, rx_chan))
+        print("Activate status:", self.status)
+        print("Current gain:", self.sdr.getGain(SOAPY_SDR_RX, rx_chan))
         print("")
 
         self.sdr.writeSetting("rfnotch_ctrl", "true") # set notches
@@ -65,8 +65,8 @@ class SDRObserver:
         #final_gain = 0 # FIXME
         self.sdr.deactivateStream(self.rxStream) #stop streaming
 
-        if sdr.getStreamMTU(self.rxStream) < self.fft_length:
-            self.fft_length = sdr.getStreamMTU(self.rxStream)
+        if self.sdr.getStreamMTU(self.rxStream) < self.fft_length:
+            self.fft_length = self.sdr.getStreamMTU(self.rxStream)
 
 
         self.buff = np.zeros((self.fft_length,), np.complex64)
@@ -105,7 +105,7 @@ class SDRObserver:
         #sdr.deactivateStream(rxStream) #stop streaming
 
         # Save output
-        spectra = [np.abs(np.fft.fft(d*self.window))**2 for d in buffs] # goes through the buffer and ffts
+        spectra = [np.abs(np.fft.fft(d*self.window))**2 for d in buffs] # goes through the buffer and ffts and sqaures
         spectra = np.array(spectra)
         spectra = np.mean(spectra, axis=0) # average along time-axis
         spectra = np.fft.fftshift(spectra)
@@ -188,14 +188,118 @@ class VNAController:
 
     def measure_SOL_calibrators(self, switches):
         switches.set_switch_state('vna_short') # set to observe short
+        
         S = self.measure_s11()
 
         switches.set_switch_state('vna_open') # set to observe open
         O = self.measure_s11()
 
-        switches.set_switch_state('vna_open') # set to observe open
+        switches.set_switch_state('vna_load') # set to observe open
         L = self.measure_s11()
         return S,O,L
+
+
+class Temperature_Sensors:
+    def __init__(self, n_sens, com_port, baud_rate):
+        self.com_port = com_port
+        self.baud_rate = baud_rate
+        self.n_sens = n_sens
+        self.serial = serial.Serial(com_port, baud_rate)
+        pass
+
+    def open(self):
+        if self.serial is None:
+            self.serial = serial.Serial(self.com_port, self.baud_rate)
+        pass
+    
+    def get_temperature_from_line(self, line, delim=[',',':'], temp_start_index = 5):
+        # line may be in the form 'T1:27.8,T2:89.0'
+        # add try except and number of attempts if there is an error with reading temperature
+        try:
+            if self.n_sens > 1:
+                line = line.split(delim[0]) # ['T1:27.8','T2:89.0']
+                temps = [float(l.split(delim[-1])[-1]) for l in line]
+                return np.array(temps)
+            else:
+                temps = float(line[temp_start_index:-1])
+                return temps
+        except:
+            print('TempSensorError')
+            print(line)
+            temps = np.ones(shape=(self.n_sens,))
+            temps *= -273
+            return temps
+
+    def read_temp(self):
+        self.open()
+        self.serial.reset_input_buffer()
+        line = self.serial.readline().decode('utf-8')
+        line = line.rstrip('\n')
+        temps = self.get_temperature_from_line(line)
+        self.close()
+        return temps
+    
+    def close(self):
+        if self.serial:
+            self.serial.close()
+        self.serial = None
+
+class Arduino:
+    def __init__(self, n_sens, com_port, baud_rate, switch_dictionary, sleep_time):
+        self.com_port = com_port
+        self.baud_rate = baud_rate
+        self.n_sens = n_sens
+        self.serial = serial.Serial(com_port, baud_rate)
+        self.switch_dict = switch_dictionary
+        self.sleep_time = sleep_time
+        pass
+
+    def open(self):
+        if self.serial is None:
+            self.serial = serial.Serial(self.com_port, self.baud_rate)
+        pass
+    
+    def get_temperature_from_line(self, line, delim=[',',':'], temp_start_index = 5):
+        # line may be in the form 'T1:27.8,T2:89.0'
+        # add try except and number of attempts if there is an error with reading temperature
+        try:
+            if self.n_sens > 1:
+                line = line.split(delim[0]) # ['T1:27.8','T2:89.0']
+                temps = [float(l.split(delim[-1])[-1]) for l in line]
+                return np.array(temps)
+            else:
+                temps = float(line[temp_start_index:-1])
+                return temps
+        except:
+            print('TempSensorError')
+            print(line)
+            temps = np.ones(shape=(self.n_sens,))
+            temps *= -273
+            return temps
+
+    def read_temp(self):
+        self.open()
+        self.serial.reset_input_buffer()
+        line = self.serial.readline().decode('utf-8')
+        line = line.rstrip('\n')
+        temps = self.get_temperature_from_line(line)
+        self.close()
+        return temps
+    
+    def close(self):
+        if self.serial:
+            self.serial.close()
+        self.serial = None
+    
+    def set_switch_state(self, switch_cmd):
+        self.open()
+        time.sleep(self.sleep_time)
+        cmd = self.switch_dict[switch_cmd]
+        print(cmd)
+        self.serial.write(cmd.encode())
+        time.sleep(self.sleep_time)
+        pass
+
 
 
 
@@ -227,7 +331,7 @@ if __name__ == "__main__":
     elif args.fft_window == 'Blackman':
         fft_window = np.blackman(fft_length)
     elif args.fft_window == 'BlackmanHarris':
-        fft_window = signal.windows.blackmanharris(M=fft_length)
+        fft_window = windows.blackmanharris(M=fft_length)
     else:
         fft_window = np.ones(shape=(fft_length,))
 
