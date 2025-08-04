@@ -146,7 +146,7 @@ class Switches:
 
 
 class VNAController:
-    def __init__(self, min_freq=55e6, max_freq = 85e6, n_int=10, out_of_band_freq=50e4):
+    def __init__(self, min_freq=55e6, max_freq = 85e6, n_int=10, out_of_band_freq=20e4):
         self.min_freq, self.max_freq = min_freq, max_freq
         self.n_int = n_int
         self.out_of_band_freq=out_of_band_freq
@@ -160,7 +160,7 @@ class VNAController:
         pass
 
     def shift_out_of_band(self, vna):
-        vna.set_sweep(start=self.out_of_band_freq, stop=self.out_of_band_freq+50e4)
+        vna.set_sweep(start=self.out_of_band_freq, stop=self.out_of_band_freq+2e4)
         vna.pause()
         pass
 
@@ -263,18 +263,14 @@ class Arduino:
         # line may be in the form 'T1:27.8,T2:89.0'
         # add try except and number of attempts if there is an error with reading temperature
         try:
-            if self.n_sens > 1:
-                line = line.split(delim[0]) # ['T1:27.8','T2:89.0']
-                temps = [float(l.split(delim[-1])[-1]) for l in line]
-                return np.array(temps)
-            else:
-                temps = float(line[temp_start_index:-1])
-                return temps
+            line = line.split(delim[0]) # ['T1:27.8','T2:89.0']
+            temps = [float(l.split(delim[-1])[-1]) for l in line]
+            print('Temps - ', temps)
+            return temps
         except:
             print('TempSensorError')
             print(line)
-            temps = np.ones(shape=(self.n_sens,))
-            temps *= -273
+            temps = [-273 for i in range(len(self.n_sens))]
             return temps
 
     def read_temp(self):
@@ -282,6 +278,7 @@ class Arduino:
         self.serial.reset_input_buffer()
         line = self.serial.readline().decode('utf-8')
         line = line.rstrip('\n')
+        print(line)
         temps = self.get_temperature_from_line(line)
         self.close()
         return temps
@@ -298,9 +295,8 @@ class Arduino:
         print(cmd)
         self.serial.write(cmd.encode())
         time.sleep(self.sleep_time)
+        self.close()
         pass
-
-
 
 
 if __name__ == "__main__":
