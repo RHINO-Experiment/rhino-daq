@@ -146,7 +146,7 @@ class Switches:
 
 
 class VNAController:
-    def __init__(self, min_freq=55e6, max_freq = 85e6, n_int=10, out_of_band_freq=20e4):
+    def __init__(self, min_freq=55e6, max_freq = 85e6, n_int=10, out_of_band_freq=1e6):
         self.min_freq, self.max_freq = min_freq, max_freq
         self.n_int = n_int
         self.out_of_band_freq=out_of_band_freq

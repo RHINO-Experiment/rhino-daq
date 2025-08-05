@@ -27,7 +27,7 @@ SWITCH_DICTIONARY = {'vna_short':'t1t1e5',
 # switch sleep time ...
 SWITCH_SLEEP_TIME = 0.1
 
-NOISE_WAVE_CAL_SWITCH_TIME = 60
+NOISE_WAVE_CAL_SWITCH_TIME = 30
 
 VNA_N_INT = 20
 
@@ -51,14 +51,14 @@ def continous_SDR_observing(sdr, observation_length, q):
         s = sdr.get_averaged_spectra()
         t = time.time()
         spectra.append(s)
-        t.append(t)
+        times.append(t)
     sdr.deactivate_stream()
     spectra = np.array(spectra)
     times = np.array(times)
     spectra_freqs = sdr.freq_channels_mhz
-
+    print('SDR Prepare To Put into queue')
     q.put(('SDR', (spectra, times, spectra_freqs)))
-    pass
+    print('SDR Has .put succesfully into queue')
 
 def continous_arduino_operation(arduino, observation_length,
                                 switch_list, switch_duration,
@@ -96,7 +96,6 @@ def continous_arduino_operation(arduino, observation_length,
     switch_times = np.array(switch_times)
 
     q.put(('Arduino', (temperatures, temperature_times, switch_states, switch_times)))
-    pass
         
 def predefined_arduino_observing(arduino, switchtime, switch_list,q):
     switch_states = []
@@ -115,14 +114,14 @@ def predefined_arduino_observing(arduino, switchtime, switch_list,q):
             temperatures.append(arduino.read_temp())
             temperature_times.append(t)
             time.sleep(1)
-    
+    print('Arduino finished')
     switch_states = np.array(switch_states, dtype='S')
     switch_times = np.array(switch_times)
     temperatures = np.array(temperatures)
     temperature_times = np.array(temperature_times)
-
+    print('Arduino Prepare to put..')
     q.put(('Arduino', (temperatures, temperature_times, switch_states, switch_times)))
-    pass
+    print('Arduino Has .put succesfully into queue')
 
 def run_simultaneous_obs(sdr,
                          arduino,
@@ -144,7 +143,7 @@ def run_simultaneous_obs(sdr,
                                         switch_duration,
                                         q))
     else:
-        observation_length = switch_duration * len(switch_list) + 10
+        observation_length = switch_duration * len(switch_list)
         sdr_process = Process(target=continous_SDR_observing,
                               args=(sdr,
                                     observation_length,
@@ -157,18 +156,25 @@ def run_simultaneous_obs(sdr,
     
     sdr_process.start()
     arduino_process.start()
+
     sdr_process.join()
     arduino_process.join()
+
+    print('Processes Rejoined Successfully')
 
     results = {}
     while not q.empty():
         func_name, value = q.get()
+        print('func_name = ', func_name)
         results[func_name] = value
     
+    
     sdr_results = results['SDR'] # tupple
+    print('sdr_results', sdr_results)
     spectra, spectra_times, spectra_freqs = sdr_results
 
     arduino_results = results['Arduino']
+    print('arduino results', arduino_results)
     temperatures, temperature_times, switch_states, switch_times = arduino_results
 
     result_dict = {'Spectra':spectra,
@@ -641,7 +647,7 @@ if __name__ == "__main__":
     # ----------------------- parsed arguments ----------
 
     if switching:
-        switching_observing_mp(sample_rate=sample_rate,
+        switching_observing(sample_rate=sample_rate,
                             centre_frequency=centre_freq,
                             integration_time=integration_time,
                             fft_length=fft_length,
