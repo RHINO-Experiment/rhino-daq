@@ -41,7 +41,7 @@ ARDUINO_BAUD_RATE = 9600
 
 HD5F_FILE_SWITCH_PERIOD = 60*60*24 # 1 DAY
 
-def continous_SDR_observing(sdr, observation_length, obs_group, group_name):
+def continous_SDR_observing(sdr, observation_length, file, obs_group_string, group_name):
     t = time.time()
     sdr.start_stream()
     spectra = []
@@ -59,6 +59,7 @@ def continous_SDR_observing(sdr, observation_length, obs_group, group_name):
     #print('SDR Prepare To Put into queue')
     #q.put(('SDR', (spectra, times, spectra_freqs)))
     #print('SDR Has .put succesfully into queue')
+    obs_group = file[obs_group_string]
     sdr_group = obs_group.create_group(group_name)
     sdr_group.create_dataset('SDR_Spectra', data=spectra, dtype=spectra.dtype)
     sdr_group.create_dataset('SDR_Times', data=times, dtype=times.dtype)
@@ -66,7 +67,7 @@ def continous_SDR_observing(sdr, observation_length, obs_group, group_name):
     print('SDR Group Saved')
 
 
-def continous_arduino_operation(arduino, observation_length, switch_list, switch_duration, obs_group, group_name):
+def continous_arduino_operation(arduino, observation_length, switch_list, switch_duration, file,obs_group_string, group_name):
     t = time.time()
     temperatures = []
     temperature_times = []
@@ -99,6 +100,7 @@ def continous_arduino_operation(arduino, observation_length, switch_list, switch
     switch_states = np.array(switch_states, dtype='S')
     switch_times = np.array(switch_times)
 
+    obs_group = file[obs_group_string]
     arduino_group = obs_group.create_group(group_name)
     arduino_group.create_dataset('Switch_States', data=switch_states, dtype=switch_states.dtype)
     arduino_group.create_dataset('Switch_Times', data=switch_times, dtype=switch_times.dtype)
@@ -108,7 +110,7 @@ def continous_arduino_operation(arduino, observation_length, switch_list, switch
 
     #q.put(('Arduino', (temperatures, temperature_times, switch_states, switch_times)))
         
-def predefined_arduino_observing(arduino, switchtime, switch_list, obs_group, group_name):
+def predefined_arduino_observing(arduino, switchtime, switch_list, file, obs_group_string, group_name):
     switch_states = []
     switch_times = []
     temperatures = []
@@ -133,6 +135,7 @@ def predefined_arduino_observing(arduino, switchtime, switch_list, obs_group, gr
     #print('Arduino Prepare to put..')
     #q.put(('Arduino', (temperatures, temperature_times, switch_states, switch_times)))
     #print('Arduino Has .put succesfully into queue')
+    obs_group = file[obs_group_string]
     arduino_group = obs_group.create_group(group_name)
     arduino_group.create_dataset('Switch_States', data=switch_states, dtype=switch_states.dtype)
     arduino_group.create_dataset('Switch_Times', data=switch_times, dtype=switch_times.dtype)
@@ -144,7 +147,7 @@ def predefined_arduino_observing(arduino, switchtime, switch_list, obs_group, gr
 def run_simultaneous_obs(sdr,
                          arduino,
                          switch_list,
-                         switch_duration, obs_group, sdr_group_name, arduino_group_name,
+                         switch_duration, file, obs_group_string, sdr_group_name, arduino_group_name,
                          observation_length=DATA_SPLIT_TIME,
                          continous=True):
     #q = Queue()
@@ -153,25 +156,25 @@ def run_simultaneous_obs(sdr,
     if continous:
         sdr_process = Process(target=continous_SDR_observing,
                               args=(sdr,
-                                    observation_length,obs_group, sdr_group_name))
+                                    observation_length,file,obs_group_string, sdr_group_name))
         arduino_process = Process(target=continous_arduino_operation,
                                   args=(arduino,
                                         observation_length,
                                         switch_list,
-                                        switch_duration,
-                                        obs_group, arduino_group_name))
+                                        switch_duration, file,
+                                        obs_group_string, arduino_group_name))
     else:
         observation_length = switch_duration * len(switch_list)
         sdr_process = Process(target=continous_SDR_observing,
                               args=(sdr,
-                                    observation_length,
-                                    obs_group,
+                                    observation_length, file ,
+                                    obs_group_string,
                                     sdr_group_name)) 
         arduino_process = Process(target=predefined_arduino_observing,
                                   args=(arduino,
                                         switch_duration,
-                                        switch_list,
-                                        obs_group, arduino_group_name))
+                                        switch_list, file,
+                                        obs_group_string, arduino_group_name))
     
     sdr_process.start()
     arduino_process.start()
@@ -281,8 +284,8 @@ def switching_observing_mp(sample_rate,
                     duration = np.abs(t_end_obs - timer)
                 else:
                     duration = DATA_SPLIT_TIME
-                
-                obs_group = file.create_group(f"{t_group_init}")
+                obs_group_string = f"{t_group_init}"
+                obs_group = file.create_group(obs_group_string)
             
                 vna_measurement_group = obs_group.create_group('VNA_Measurements')
 
@@ -312,7 +315,8 @@ def switching_observing_mp(sample_rate,
                                      arduino=temp_sens_switches,
                                      switch_list=noise_wave_cal_list,
                                      switch_duration=NOISE_WAVE_CAL_SWITCH_TIME,
-                                     obs_group=obs_group, sdr_group_name='NW_SDR',
+                                     file=file,
+                                     obs_group_string=obs_group_string, sdr_group_name='NW_SDR',
                                      arduino_group_name='NW_ARDUINO',
                                      observation_length=len(noise_wave_cal_list)*NOISE_WAVE_CAL_SWITCH_TIME,
                                      continous=False)
@@ -325,7 +329,8 @@ def switching_observing_mp(sample_rate,
                                      arduino=temp_sens_switches,
                                      switch_list=switch_source_list, 
                                      switch_duration=switch_duration,
-                                     obs_group=obs_group,
+                                     file=file,
+                                     obs_group_string=obs_group_string,
                                      sdr_group_name='OBS_SDR',
                                      arduino_group_name='OBS_ARDUINO',
                                      observation_length=duration,
