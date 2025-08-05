@@ -41,7 +41,7 @@ ARDUINO_BAUD_RATE = 9600
 
 HD5F_FILE_SWITCH_PERIOD = 60*60*24 # 1 DAY
 
-def continous_SDR_observing(sdr, observation_length, q):
+def continous_SDR_observing(sdr, observation_length, obs_group, group_name):
     t = time.time()
     sdr.start_stream()
     spectra = []
@@ -56,14 +56,18 @@ def continous_SDR_observing(sdr, observation_length, q):
     spectra = np.array(spectra)
     times = np.array(times)
     spectra_freqs = sdr.freq_channels_mhz
-    print('SDR Prepare To Put into queue')
-    q.put(('SDR', (spectra, times, spectra_freqs)))
-    print('SDR Has .put succesfully into queue')
+    #print('SDR Prepare To Put into queue')
+    #q.put(('SDR', (spectra, times, spectra_freqs)))
+    #print('SDR Has .put succesfully into queue')
+    sdr_group = obs_group.create_group(group_name)
+    sdr_group.create_dataset('SDR_Spectra', data=spectra, dtype=spectra.dtype)
+    sdr_group.create_dataset('SDR_Times', data=times, dtype=times.dtype)
+    sdr_group.create_dataset('SDR_Freqs', data=spectra_freqs, dtype=spectra_freqs.dtype)
+    print('SDR Group Saved')
 
-def continous_arduino_operation(arduino, observation_length,
-                                switch_list, switch_duration,
-                                q):
-    t = time.timer()
+
+def continous_arduino_operation(arduino, observation_length, switch_list, switch_duration, obs_group, group_name):
+    t = time.time()
     temperatures = []
     temperature_times = []
     switch_states = []
@@ -86,7 +90,7 @@ def continous_arduino_operation(arduino, observation_length,
             temperature_times.append(t)
             time.sleep(1)
         switch_index += 1
-        if switch_index > len(switch_list):
+        if switch_index >= len(switch_list):
             switch_index = 0
         switch_target = switch_list[switch_index]
     
@@ -95,9 +99,16 @@ def continous_arduino_operation(arduino, observation_length,
     switch_states = np.array(switch_states, dtype='S')
     switch_times = np.array(switch_times)
 
-    q.put(('Arduino', (temperatures, temperature_times, switch_states, switch_times)))
+    arduino_group = obs_group.create_group(group_name)
+    arduino_group.create_dataset('Switch_States', data=switch_states, dtype=switch_states.dtype)
+    arduino_group.create_dataset('Switch_Times', data=switch_times, dtype=switch_times.dtype)
+    arduino_group.create_dataset('Tempertures', data=temperatures, dtype=temperatures.dtype)
+    arduino_group.create_dataset('Temperature_Times', data=temperature_times, dtype=temperature_times.dtype)
+    print(f'Saved {group_name} Variables')
+
+    #q.put(('Arduino', (temperatures, temperature_times, switch_states, switch_times)))
         
-def predefined_arduino_observing(arduino, switchtime, switch_list,q):
+def predefined_arduino_observing(arduino, switchtime, switch_list, obs_group, group_name):
     switch_states = []
     switch_times = []
     temperatures = []
@@ -119,72 +130,89 @@ def predefined_arduino_observing(arduino, switchtime, switch_list,q):
     switch_times = np.array(switch_times)
     temperatures = np.array(temperatures)
     temperature_times = np.array(temperature_times)
-    print('Arduino Prepare to put..')
-    q.put(('Arduino', (temperatures, temperature_times, switch_states, switch_times)))
-    print('Arduino Has .put succesfully into queue')
+    #print('Arduino Prepare to put..')
+    #q.put(('Arduino', (temperatures, temperature_times, switch_states, switch_times)))
+    #print('Arduino Has .put succesfully into queue')
+    arduino_group = obs_group.create_group(group_name)
+    arduino_group.create_dataset('Switch_States', data=switch_states, dtype=switch_states.dtype)
+    arduino_group.create_dataset('Switch_Times', data=switch_times, dtype=switch_times.dtype)
+    arduino_group.create_dataset('Tempertures', data=temperatures, dtype=temperatures.dtype)
+    arduino_group.create_dataset('Temperature_Times', data=temperature_times, dtype=temperature_times.dtype)
+    print(f'Saved {group_name} Variables')
+
 
 def run_simultaneous_obs(sdr,
                          arduino,
                          switch_list,
-                         switch_duration,
+                         switch_duration, obs_group, sdr_group_name, arduino_group_name,
                          observation_length=DATA_SPLIT_TIME,
                          continous=True):
-    q = Queue()
+    #q = Queue()
+    #r = Queue()
 
     if continous:
         sdr_process = Process(target=continous_SDR_observing,
                               args=(sdr,
-                                    observation_length,
-                                    q))
+                                    observation_length,obs_group, sdr_group_name))
         arduino_process = Process(target=continous_arduino_operation,
                                   args=(arduino,
                                         observation_length,
                                         switch_list,
                                         switch_duration,
-                                        q))
+                                        obs_group, arduino_group_name))
     else:
         observation_length = switch_duration * len(switch_list)
         sdr_process = Process(target=continous_SDR_observing,
                               args=(sdr,
                                     observation_length,
-                                    q))
+                                    obs_group,
+                                    sdr_group_name)) 
         arduino_process = Process(target=predefined_arduino_observing,
                                   args=(arduino,
                                         switch_duration,
                                         switch_list,
-                                        q))
+                                        obs_group, arduino_group_name))
     
     sdr_process.start()
     arduino_process.start()
 
+    #q_results = {}
+    #while not q.empty():
+    #    func_name, value = q.get()
+    #    print('func_name = ', func_name)
+    #    q_results[func_name] = value
+
+    #r_results = {}
+    #while not q.empty():
+    #    func_name, value = r.get()
+    #    print('func_name = ', func_name)
+    #    r_results[func_name] = value
+
+
     sdr_process.join()
     arduino_process.join()
 
+
     print('Processes Rejoined Successfully')
 
-    results = {}
-    while not q.empty():
-        func_name, value = q.get()
-        print('func_name = ', func_name)
-        results[func_name] = value
     
     
-    sdr_results = results['SDR'] # tupple
-    print('sdr_results', sdr_results)
-    spectra, spectra_times, spectra_freqs = sdr_results
+    #sdr_results = q_results['SDR'] # tupple
+    #print('sdr_results', sdr_results)
+    #spectra, spectra_times, spectra_freqs = sdr_results
 
-    arduino_results = results['Arduino']
-    print('arduino results', arduino_results)
-    temperatures, temperature_times, switch_states, switch_times = arduino_results
+    #arduino_results = r_results['Arduino']
+    #print('arduino results', arduino_results)
+    #temperatures, temperature_times, switch_states, switch_times = arduino_results
 
-    result_dict = {'Spectra':spectra,
-                   'Spectra_Times':spectra_times,
-                   'Spectra_Freqs':spectra_freqs,
-                   'Temperatures':temperatures,
-                   'Temperature_Times':temperature_times,
-                   'Switch_States':switch_states,
-                   'Switch_Times':switch_times}
-    return result_dict    
+    #result_dict = {'Spectra':spectra,
+    #               'Spectra_Times':spectra_times,
+     #              'Spectra_Freqs':spectra_freqs,
+      #             'Temperatures':temperatures,
+       #            'Temperature_Times':temperature_times,
+        #           'Switch_States':switch_states,
+         #          'Switch_Times':switch_times}
+    #return result_dict    
 
 def switching_observing_mp(sample_rate,
                            centre_frequency,
@@ -280,39 +308,29 @@ def switching_observing_mp(sample_rate,
 
                 print('Measuring Noise-Wave Calibrators')
 
-                obs_dict = run_simultaneous_obs(SDR, temp_sens_switches,
-                                                noise_wave_cal_list,
-                                                switch_duration=NOISE_WAVE_CAL_SWITCH_TIME,
-                                                observation_length=len(noise_wave_cal_list)*NOISE_WAVE_CAL_SWITCH_TIME,
-                                                continous=False)
+                run_simultaneous_obs(sdr=SDR,
+                                     arduino=temp_sens_switches,
+                                     switch_list=noise_wave_cal_list,
+                                     switch_duration=NOISE_WAVE_CAL_SWITCH_TIME,
+                                     obs_group=obs_group, sdr_group_name='NW_SDR',
+                                     arduino_group_name='NW_ARDUINO',
+                                     observation_length=len(noise_wave_cal_list)*NOISE_WAVE_CAL_SWITCH_TIME,
+                                     continous=False)
                 
-                noise_wave_cal_obsgroup = obs_group.create_group('NoiseWaveCal')
-                noise_wave_cal_obsgroup.create_dataset('SDR_Spectra', data=obs_dict['Spectra'], dtype=obs_dict['Spectra'].dtype)
-                noise_wave_cal_obsgroup.create_dataset('SDR_Times', data=obs_dict['Spectra_Times'], dtype=obs_dict['Spectra_Times'].dtype)
-                noise_wave_cal_obsgroup.create_dataset('SDR_Frequencies', data=obs_dict['Spectra_Freqs'], dtype=obs_dict['Spectra_Freqs'].dtype)
-                noise_wave_cal_obsgroup.create_dataset('Switch_States', data=obs_dict['Switch_States'])
-                noise_wave_cal_obsgroup.create_dataset('Switch_Times', data=obs_dict['Switch_Times'], dtype=obs_dict['Switch_Times'].dtype)
-                noise_wave_cal_obsgroup.create_dataset('Temperatures', data=obs_dict['Temperatures'], dtype=obs_dict['Temperatures'].dtype)
-                noise_wave_cal_obsgroup.create_dataset('Temperature_Times', data=obs_dict['Temperature_Times'], dtype=obs_dict['Temperature_Times'].dtype)
-
                 print('Noise Wave Calibrator Spectra Measured and Saved')
 
                 print('Starting Full Observations')
 
-                obs_dict = run_simultaneous_obs(SDR, temp_sens_switches,
-                                                switch_source_list, switch_duration=switch_duration,
-                                                observation_length=duration, continous=True)
-                
+                run_simultaneous_obs(sdr=SDR,
+                                     arduino=temp_sens_switches,
+                                     switch_list=switch_source_list, 
+                                     switch_duration=switch_duration,
+                                     obs_group=obs_group,
+                                     sdr_group_name='OBS_SDR',
+                                     arduino_group_name='OBS_ARDUINO',
+                                     observation_length=duration,
+                                     continous=True)
                 print('Saving Observation Data')
-                    
-                spectra_measurement_group = obs_group.create_group('SDR_Measurements')
-                spectra_measurement_group.create_dataset('SDR_Spectra', data=obs_dict['Spectra'], dtype=obs_dict['Spectra'].dtype)
-                spectra_measurement_group.create_dataset('SDR_Times', data=obs_dict['Spectra_Times'], dtype=obs_dict['Spectra_Times'].dtype)
-                spectra_measurement_group.create_dataset('SDR_Frequencies', data=obs_dict['Spectra_Freqs'], dtype=obs_dict['Spectra_Freqs'].dtype)
-                spectra_measurement_group.create_dataset('Switch_States', data=obs_dict['Switch_States'])
-                spectra_measurement_group.create_dataset('Switch_Times', data=obs_dict['Switch_Times'], dtype=obs_dict['Switch_Times'].dtype)
-                spectra_measurement_group.create_dataset('Temperatures', data=obs_dict['Temperatures'], dtype=obs_dict['Temperatures'].dtype)
-                spectra_measurement_group.create_dataset('Temperature_Times', data=obs_dict['Temperature_Times'], dtype=obs_dict['Temperature_Times'].dtype)
 
                 print(f'Saved Group {t_group_init}')
                 timer = time.time()
@@ -647,7 +665,7 @@ if __name__ == "__main__":
     # ----------------------- parsed arguments ----------
 
     if switching:
-        switching_observing(sample_rate=sample_rate,
+        switching_observing_mp(sample_rate=sample_rate,
                             centre_frequency=centre_freq,
                             integration_time=integration_time,
                             fft_length=fft_length,
