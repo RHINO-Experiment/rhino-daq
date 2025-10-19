@@ -1,0 +1,62 @@
+observationParams:
+  runLength: 10000
+  obsCachePath: /rhino-daq/obs_cache
+  dataDirectory: /rhino-daq/data
+  optimisedObserving: false
+  switchInstructions:
+  customName:
+
+sdr:
+  active: true
+  centreFrequency: 70.0e+6
+  bandwidth:  8.0e+6
+  nChannels: 4096
+  sdrDriver: sdrplay
+  sdrLabel: SDRplay Dev0 RSPdx 2302031848
+  sdrId: 2302031848
+  sampleIntegrationTime: 1
+  sdrGain:  36
+  spectrometerMode: fft
+  pfbParams:
+    nTaps: 4
+    appliedWindow: blackman
+  fftParams:
+    appliedWindow: Rectangular
+
+auxSdr:
+  active: true
+  centreFrequency: 70.0e+6
+  bandwidth:  8.0e+6
+  nChannels: 4096
+  sdrDriver: sdrplay
+  sdrLabel: SDRplay Dev1 RSP1A 2238063199
+  sdrId: 2238063199
+  sampleIntegrationTime: 1
+  sdrGain:  36
+  spectrometerMode: fft
+  pfbParams:
+    nTaps: 4
+    appliedWindow: blackman
+  fftParams:
+    appliedWindow: Rectangular
+
+arduino:
+  active: false
+  comPort: com_port_string
+
+  temperatureMonitoring:
+    active: false
+    obsRate: 1
+    nProbes: 2
+    probeLabels:
+    - load_monitoring
+    - ambient_monitoring
+    unit: celcius
+  
+  switches:
+    active: false
+    optimisedObserving: false
+
+
+
+
