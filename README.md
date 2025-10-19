@@ -19,7 +19,7 @@ Script to run the SDRs used during observing. aux_sdr is the auxillery sdr for o
 Utility functions for running an FFT spectrometer with sdr_control.py
 
 ## pfb_funcs.py
-Utility functions for running a PFB spectrometer with sdr_control.py
+Utility functions for running a PFB spectrometer with sdr_control.py. Largely based on the code by Danny Price at https://github.com/telegraphic/pfb_introduction/tree/master
 
 ## vna_control.py
 Script for communication and data logging with the VNA
