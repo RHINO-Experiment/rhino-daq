@@ -11,6 +11,7 @@ The code is designed to work on a mini-PC, like a Raspberry Pi or Odroid.
 -  numpy
 -  scipy
 -  pySerial
+-  nanovna.py
 
 # /src/
 The Python files in /src/ are supposed to be ran through observe.sh or similar shell functions to facilitate observations. Each is for a specific piece of hardware e.g. arduino_contol.py -arduino... Parameters and configuration should be set up in obs_config.yaml and read by each function.
@@ -34,9 +35,6 @@ Scipt to convert the data numpy arrays and observing information saved to the ca
 
 # observe.sh
 Shell script for running observations. Will run scripts for hardware in parallell with setting defined prior to observing with obs_config.yaml.
-
-# nanovna.py
-Functions for controlling the nanoVNA from https://github.com/PICC-Group/pynanovna
 
 # old - observe.func.py
 Old utility functions and classes for running observations. Needs to be integrated into /src/
