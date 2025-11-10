@@ -43,6 +43,7 @@ auxSdr:
 arduino:
   active: false
   comPort: com_port_string
+  baudRate: 9600
 
   temperatureMonitoring:
     active: false
@@ -52,11 +53,29 @@ arduino:
     - load_monitoring
     - ambient_monitoring
     unit: celcius
+    cadence: 10
   
   switches:
     active: false
     optimisedObserving: false
-
+    cycleLength: 60
+    primaryTarget: receiver_ant
+  
+switchDictionary:
+  vna_short: t1t1e5
+  vna_open: t1t1e6
+  vna_load: t1t1e7
+  vna_receiver: t2t2e8
+  vna_ns: t1t1e3
+  vna_obsload: t1t1e2
+  vna_ant: t1t1e4
+  receiver_obsload: t2t2e2
+  receiver_ns: t2t2e3
+  receiver_ant: t2t2e4
+  receiver_short: t2t2e5
+  receiver_open: t2t2e6
+  receiver_load: t2t2e7
+  receiver_longcable: t2t2e1
 
 
 

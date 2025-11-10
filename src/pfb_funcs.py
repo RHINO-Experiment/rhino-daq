@@ -1,3 +1,5 @@
+## Based on Danny Price's PFB notebook
+
 from scipy.signal import firwin, freqz, lfilter, get_window
 import numpy as np
 
