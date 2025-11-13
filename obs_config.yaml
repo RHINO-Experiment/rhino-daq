@@ -1,5 +1,5 @@
 observationParams:
-  runLength: 10000
+  runLength: 600
   obsCachePath: /rhino-daq/obs_cache
   dataDirectory: /rhino-daq/data
   optimisedObserving: false
@@ -10,13 +10,13 @@ sdr:
   active: true
   centreFrequency: 70.0e+6
   bandwidth:  8.0e+6
-  nChannels: 4096
+  nChannels: 2048
   sdrDriver: sdrplay
   sdrLabel: SDRplay Dev0 RSPdx 2302031848
   sdrId: 2302031848
   sampleIntegrationTime: 1
   sdrGain:  36
-  spectrometerMode: fft
+  spectrometerMode: pfb
   pfbParams:
     nTaps: 4
     appliedWindow: blackman
@@ -24,7 +24,7 @@ sdr:
     appliedWindow: Rectangular
 
 auxSdr:
-  active: true
+  active: false
   centreFrequency: 70.0e+6
   bandwidth:  8.0e+6
   nChannels: 4096
@@ -41,24 +41,24 @@ auxSdr:
     appliedWindow: Rectangular
 
 arduino:
-  active: false
-  comPort: com_port_string
+  active: true
+  comPort: /dev/ttyACM0
   baudRate: 9600
 
   temperatureMonitoring:
-    active: false
+    active: true
     obsRate: 1
     nProbes: 2
     probeLabels:
     - load_monitoring
     - ambient_monitoring
     unit: celcius
-    cadence: 10
+    cadence: 1
   
   switches:
-    active: false
+    active: true
     optimisedObserving: false
-    cycleLength: 60
+    cycleLength: 45
     primaryTarget: receiver_ant
   
 switchDictionary:
@@ -66,11 +66,11 @@ switchDictionary:
   vna_open: t1t1e6
   vna_load: t1t1e7
   vna_receiver: t2t2e8
-  vna_ns: t1t1e3
-  vna_obsload: t1t1e2
+  vna_ns: t1t1e2
+  vna_obsload: t1t1e3
   vna_ant: t1t1e4
-  receiver_obsload: t2t2e2
-  receiver_ns: t2t2e3
+  receiver_obsload: t2t2e3
+  receiver_ns: t2t2e2
   receiver_ant: t2t2e4
   receiver_short: t2t2e5
   receiver_open: t2t2e6

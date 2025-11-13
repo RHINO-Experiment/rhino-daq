@@ -15,6 +15,7 @@ class Arduino:
         self.n_sens = n__temp_sens
         self.serial = serial.Serial(com_port, baud_rate)
         self.switch_dict = switch_dictionary
+        self.open()
         pass
 
     def open(self):
@@ -45,7 +46,7 @@ class Arduino:
         line = line.rstrip('\n')
         print(line)
         temps = self.get_temperature_from_line(line)
-        self.close()
+        #self.close()
         return temps
     
     def close(self):
@@ -59,8 +60,9 @@ class Arduino:
         cmd = self.switch_dict[switch_cmd]
         print(cmd)
         self.serial.write(cmd.encode())
+        print('Switched to ', switch_cmd)
         time.sleep(0.2)
-        self.close()
+        #self.close()
         pass
 
 ####
@@ -105,6 +107,7 @@ def continous_arduino_operation(arduino: Arduino,
     switch_states = np.array(switch_states, dtype='S')
     switch_times = np.array(switch_times)
 
+    arduino.close()
 
     return temperatures, temperature_times, switch_states, switch_times
 
@@ -148,7 +151,7 @@ def continous_equal_switching(arduino: Arduino,
 
         while t < t_switch and t < t_f:
             t = time.time()
-            time.sleep(0.1)
+            time.sleep(0.01)
         switch_index += 1
         if switch_index >= len(switch_targets):
             switch_index = 0

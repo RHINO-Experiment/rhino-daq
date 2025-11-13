@@ -83,6 +83,37 @@ def main():
             aux_sdr_group.create_dataset('aux_sdr_waterfall', dtype="f")
             aux_sdr_group.create_dataset('aux_sdr_freqs', dtype="f")
             aux_sdr_group.create_dataset('aux_sdr_times', dtype="f")
+        
+        if obs_config['arduino']['temperatureMonitoring']['active']:
+            temperatures = np.load(f'{cached_path}/temperature_array.npy')
+            temperature_times = np.load(f'{cached_path}/temperature_times.npy')
+            temperature_group.create_dataset('temperatures',
+                                             data=temperatures,
+                                             dtype=temperatures.dtype)
+            temperature_group.create_dataset('temperature_times',
+                                             data=temperature_times,
+                                             dtype=temperature_times.dtype)
+        else:
+            temperature_group.create_dataset('temperatures',
+                                             dtype='f')
+            temperature_group.create_dataset('temperature_times',
+                                             dtype='f')
+        
+        if obs_config['arduino']['switches']['active']:
+            swtich_states = np.load(f'{cached_path}/switch_states.npy')
+            switch_times = np.load(f'{cached_path}/switch_times.npy')
+            switching_group.create_dataset('switch_states',
+                                           data=swtich_states,
+                                           dtype=swtich_states.dtype)
+            switching_group.create_dataset('switch_times',
+                                           data=switch_times,
+                                           dtype=switch_times.dtype)
+        else:
+            switching_group.create_dataset('switch_states',
+                                           dtype='f')
+            switching_group.create_dataset('switch_times',
+                                           dtype='f')
+            
 
         ## Same but for arduino observables
 
