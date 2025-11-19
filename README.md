@@ -11,7 +11,7 @@ The code is designed to work on a mini-PC, like a Raspberry Pi or Odroid.
 -  numpy
 -  scipy
 -  pySerial
--  nanovna.py
+-  pynanovna
 
 # /src/
 The Python files in /src/ are supposed to be ran through observe.sh or similar shell functions to facilitate observations. Each is for a specific piece of hardware e.g. arduino_contol.py -arduino... Parameters and configuration should be set up in obs_config.yaml and read by each function.
