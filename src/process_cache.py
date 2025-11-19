@@ -6,6 +6,75 @@ import h5py
 import yaml
 import datetime
 import argparse
+import pickle
+from h5py import string_dtype
+
+
+
+def save_dict_to_group(group: h5py.Group, data: dict, pickle_fallback: bool = True):
+    """
+    Save a dictionary into an existing HDF5 group.
+    Supports nested dicts, arrays, scalars, strings, None, and generic pickled objects.
+    """
+    def _save(group: h5py.Group, key: str, item):
+        # Sub-dictionary → create subgroup
+        if isinstance(item, dict):
+            subgroup = group.create_group(key)
+            for k, v in item.items():
+                _save(subgroup, k, v)
+            return
+
+        # numpy array
+        if isinstance(item, np.ndarray):
+            group.create_dataset(key, data=item)
+            return
+
+        # Python numeric types
+        if isinstance(item, (int, float, bool, np.number)):
+            group.create_dataset(key, data=item)
+            return
+
+        # Strings
+        if isinstance(item, str):
+            dt = string_dtype(encoding="utf-8")
+            group.create_dataset(key, data=item, dtype=dt)
+            return
+
+        # list / tuple
+        if isinstance(item, (list, tuple)):
+            try:
+                arr = np.array(item)
+                group.create_dataset(key, data=arr)
+            except Exception:
+                if pickle_fallback:
+                    raw = pickle.dumps(item)
+                    arr = np.frombuffer(raw, dtype='uint8')
+                    ds = group.create_dataset(key, data=arr)
+                    ds.attrs["__pickled__"] = True
+                else:
+                    raise
+            return
+
+        # None
+        if item is None:
+            ds = group.create_dataset(key, data=np.array(0))
+            ds.attrs["__is_none__"] = True
+            return
+
+        # Fallback: pickle unknown object
+        if pickle_fallback:
+            raw = pickle.dumps(item)
+            arr = np.frombuffer(raw, dtype='uint8')
+            ds = group.create_dataset(key, data=arr)
+            ds.attrs["__pickled__"] = True
+            return
+
+        raise TypeError(f"Cannot save object of type {type(item)} for key '{key}'")
+
+    for k, v in data.items():
+        _save(group, k, v)
+
+
 
 def main():
 # Base of actual obs_config.yaml
@@ -52,6 +121,9 @@ def main():
         aux_sdr_group = f.create_group('aux_sdr')
         temperature_group = f.create_group('temperatures')
         switching_group = f.create_group('switches')
+        config_group = f.create_group('obs_config')
+
+        save_dict_to_group(config_group, obs_config)
 
         if obs_config['sdr']['active']: # set up sdr group
             sdr_waterfall = np.load(f'{cached_path}/sdr_waterfall.npy')

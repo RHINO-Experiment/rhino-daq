@@ -32,11 +32,14 @@ class Arduino:
             line = line.split(delim[0]) # ['T1:27.8','T2:89.0']
             temps = [float(l.split(delim[-1])[-1]) for l in line]
             print('Temps - ', temps)
-            return temps
+            if len(temps) < self.n_sens:
+                raise Exception('Temp_Read_Error')
+            else:
+                return temps
         except:
             print('TempSensorError')
             print(line)
-            temps = [-273 for i in range(len(self.n_sens))]
+            temps = [-273 for i in range(self.n_sens)]
             return temps
 
     def read_temp(self):

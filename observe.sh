@@ -1,5 +1,5 @@
 #!/bin/bash
-# run_both.sh
+# observe.sh
 
 end=$((SECONDS+15))
 
@@ -8,6 +8,8 @@ sudo date -s "$(wget --method=HEAD -qSO- --max-redirect=0 google.com 2>&1 | sed 
 echo "Launching RHINO Observing"
 
 yaml_path="/rhino-daq/obs_config.yaml"
+
+python3 src/vna_control.py --yaml $yaml_path
 
 while [ $SECONDS -lt $end ]; do
     # Launch both SDR scripts in parallel and arduino script

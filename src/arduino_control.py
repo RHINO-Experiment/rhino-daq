@@ -58,8 +58,12 @@ def main():
         print('Arduino Function Finished and Cached')
         return
 
+    
     primaryTarget = obs_config['arduino']['switches']['primaryTarget']
-    switch_targets = [primaryTarget, 'receiver_obsload', 'receiver_ns']
+    if primaryTarget is not None:
+        switch_targets = [primaryTarget, 'receiver_obsload', 'receiver_ns']
+    else:
+        switch_targets = obs_config['arduino']['switches']['switchTargets']
     cycleLength = obs_config['arduino']['switches']['cycleLength']
 
     if swtich_status and not temp_monitoring_status:
