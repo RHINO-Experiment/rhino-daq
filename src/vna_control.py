@@ -12,10 +12,19 @@ def switch_and_measure(switch_command: str,
                        vna: pynanovna.VNA,
                        arduino: arduino_funcs.Arduino,
                        n_int: int):
+    arduino.open()
     arduino.set_switch_state(switch_command)
-
+    time.sleep(1)
     s11_mean, s21_mean, freqs = get_integrated_sparams(vna, n_int)
     return s11_mean, s21_mean, freqs
+
+
+def measure_only(vna: pynanovna.VNA,
+                 n_int: int):
+   time.sleep(1)
+
+   s11_mean, s21_mean, freqs = get_integrated_sparams(vna, n_int)
+   return s11_mean, s21_mean, freqs
 
 def get_integrated_sparams(vna: pynanovna.VNA,
                            n_int:int):
@@ -33,7 +42,7 @@ def get_integrated_sparams(vna: pynanovna.VNA,
    return s11_mean, s21_mean, freqs
 
 def calibrate_vna_manual(vna: pynanovna.VNA,
-                         save: bool = False,
+                         save: bool = True,
                          savepath: str = None):
    print('--- Manual VNA Calibration ---')
    input("Attatch Short - Press any to calibrate")
@@ -43,8 +52,13 @@ def calibrate_vna_manual(vna: pynanovna.VNA,
    input("Attatch Load - Press any to calibrate")
    vna.calibration_step("load")
 
+   input("Attatch Load to both ports - Press any to calibrate")
+   vna.calibration_step("isolation")
+
    input("Connect Through Port")
    vna.calibration_step("through")
+
+   input("Enter Anything to Continue")
 
    vna.calibrate()
    if save:
@@ -54,7 +68,7 @@ def calibrate_vna_manual(vna: pynanovna.VNA,
 def calibrate_vna_switches(vna: pynanovna.VNA,
                            arduino: arduino_funcs.Arduino,
                            vna_calibration_targets:dict,
-                           save: bool = False,
+                           save: bool = True,
                            savepath: str = None):
    
    arduino.set_switch_state(vna_calibration_targets['load'])
@@ -80,11 +94,23 @@ def calibrate_vna_switches(vna: pynanovna.VNA,
    return vna
 
 
-def save_into_hd5f(switch_targets_s11_dict: dict, freqs, filepath):
+def save_dict_into_hd5f(switch_targets_s11_dict: dict, freqs, filepath):
+   """
+   Recursively saves dictionary objects into hd5f file 
+   """
    with h5py.File(filepath, mode='w') as f:
       f.create_dataset('Frequencies', data=freqs)
       for target, s11 in switch_targets_s11_dict.items():
          f.create_dataset(target, data=s11, dtype=s11.dtype)
+
+def save_into_hd5f(s11_mean, freqs, filepath):
+   """
+   saves single .numpy file into hd5f
+   """
+   with h5py.File(filepath, mode='w') as f:
+      f.create_dataset('Frequencies', data=freqs)
+      f.create_dataset('s11', data=s11_mean, dtype=s11_mean.dtype)
+
 
 def main():
    parser = argparse.ArgumentParser(description="VNA Control")
@@ -110,46 +136,66 @@ def main():
    switch_dictionary = obs_config['switchDictionary']
 
    vna_calibation_targets = vna_config['calibrationSwitchPaths']
-   vna_calibration_path = vna_config['calibrationPath']
+   vna_calibration_path = vna_config['calibrationPath'] # configuration
 
-   arduino = arduino_funcs.Arduino(n__temp_sens=arduino_config['temperatureMonitoring']['nProbes'],
-                                   com_port=arduino_config['comPort'],
-                                   baud_rate=arduino_config['baudRate'],
-                                   switch_dictionary=switch_dictionary)
+   print(vna_calibration_path)
+   
 
    recalibration_status = vna_config['recalibrate']
    n_int = vna_config['integrations']
-
+   lower_sweep, upper_sweep = vna_config['frequencyRange']
+   n_points = vna_config['dataPoints']
    vna = pynanovna.VNA()
+   vna.set_sweep(lower_sweep, upper_sweep, n_points)
+
+   if vna_config['switching'] or not vna_config['manualCalibration']:
+      arduino = arduino_funcs.Arduino(n__temp_sens=arduino_config['temperatureMonitoring']['nProbes'],
+                                      com_port=arduino_config['comPort'],
+                                      baud_rate=arduino_config['baudRate'],
+                                      switch_dictionary=switch_dictionary) # set up arduino for switching
+
    # Apply or Recalibrate VNA
    if recalibration_status:
       manual = vna_config['manualCalibration']
       if manual:
-         vna = calibrate_vna_manual(vna, vna_calibation_targets,save=True, savepath=vna_calibration_path)
+         vna = calibrate_vna_manual(vna, vna_calibation_targets, savepath=vna_calibration_path)
       else:
-         vna = calibrate_vna_switches(vna, arduino, vna_calibation_targets,
-                                      save=True, savepath=vna_calibration_path)
+         vna = calibrate_vna_switches(vna, arduino, vna_calibation_targets, savepath=vna_calibration_path)
    else:
       vna.load_calibration(vna_calibration_path)
    
-   targetS11s = {} # dictionary of s11s
-
-   switch_targets = vna_config['switchTargets']
-   for target in switch_targets:
-      s11_mean, s21_mean, freqs = switch_and_measure(target, vna, arduino, n_int)
-      targetS11s[target] = s11_mean
-   
    data_path = obs_config['observationParams']['dataDirectory']
 
-   currentTime = datetime.datetime.now()
-   filepath = f"{data_path}/{currentTime.strftime("%Y-%m-%d_%H-%M-%S_vna")}"
+   if vna_config['switching']:
+      targetS11s = {} # dictionary of s11s
 
-   save_into_hd5f(switch_targets_s11_dict=targetS11s,
-                  freqs=freqs,
-                  filepath=filepath)
+      switch_targets = vna_config['switchTargets']
+      for target in switch_targets:
+         s11_mean, _, freqs = switch_and_measure(target, vna, arduino, n_int)
+         targetS11s[target] = s11_mean
+   else:
+      s11_mean, _, freqs = measure_only(vna, n_int)
+   
+
+   if not vna_config['customName']:
+      currentTime = datetime.datetime.now()
+      curentTimestring = currentTime.strftime("%Y-%m-%d_%H-%M-%S_vna")
+      filepath = f"{data_path}/{curentTimestring}"
+   else:
+      custom_name = str(input('Enter Save Name'))
+      filepath = f"{data_path}/{custom_name}_vna"
+
+   if vna_config['switching']:
+      save_dict_into_hd5f(switch_targets_s11_dict=targetS11s,
+                          freqs=freqs,
+                          filepath=filepath)
+   else:
+      save_into_hd5f(s11_mean, freqs, filepath)
 
    print("VNA Measurements Complete")
 
    pass
 
 
+if __name__ == "__main__":
+    main()

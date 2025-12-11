@@ -8,3 +8,4 @@ echo "Launching VNA Measurements"
 yaml_path="/rhino-daq/obs_config.yaml"
 
 python3 src/vna_control.py --yaml $yaml_path
+

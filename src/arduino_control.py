@@ -47,6 +47,7 @@ def main():
                                            com_port=com_port,
                                            baud_rate=baud_rate,
                                            switch_dictionary=switch_dictionary)
+    
 
     if temp_monitoring_status and not swtich_status:
         temperatures, temperature_times = arduino_funcs.continous_temperatures(arduino=arduino_object,

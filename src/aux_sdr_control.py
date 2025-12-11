@@ -42,6 +42,8 @@ def measure_spectra(sampleIntegrationTime,
     sdr.setFrequency(SOAPY_SDR_RX, rx_chan, centre_frequency)
     sdr.setBandwidth(SOAPY_SDR_RX, rx_chan, int(bandwidth)) # intialises the SDR with settings
 
+    print("auxSDR:","hardware info", sdr.getHardwareInfo())
+
     sdr.setGainMode(SOAPY_SDR_RX, rx_chan, False) # turn ON AGC
     sdr.setGain(SOAPY_SDR_RX, rx_chan, sdrGain)
     rxStream = sdr.setupStream(SOAPY_SDR_RX, SOAPY_SDR_CF32, [rx_chan])
@@ -148,6 +150,7 @@ def main():
     sampleIntegrationTime = sdr_config['sampleIntegrationTime']
     spectrometerMode = sdr_config['spectrometerMode']
     sdrGain = sdr_config['sdrGain']
+    delay = sdr_config['delay']
 
     if spectrometerMode == 'pfb':
         nTaps = sdr_config['pfbParams']['nTaps']
@@ -155,6 +158,10 @@ def main():
     else:
         nTaps = None
         appliedWindow = sdr_config['fftParams']['appliedWindow']
+
+    runLength = runLength - delay
+
+    time.sleep(delay)
 
     waterfall_spectra, times, freqs = measure_spectra(sampleIntegrationTime = sampleIntegrationTime,
                                                       runLength = runLength,

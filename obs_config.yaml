@@ -2,7 +2,7 @@
 
 
 observationParams:
-  runLength: 300
+  runLength: 11000
   obsCachePath: /rhino-daq/obs_cache
   dataDirectory: /rhino-daq/data
   optimisedObserving: false
@@ -13,12 +13,13 @@ sdr:
   active: true
   centreFrequency: 70.0e+6
   bandwidth:  8.0e+6
-  nChannels: 2048
+  nChannels: 4096
   sdrDriver: sdrplay
   sdrLabel: SDRplay Dev0 RSPdx 2302031848
   sdrId: 2302031848
   sampleIntegrationTime: 1
-  sdrGain:  60
+  delay: 600
+  sdrGain: 36
   spectrometerMode: pfb
   pfbParams:
     nTaps: 4
@@ -27,7 +28,7 @@ sdr:
     appliedWindow: Rectangular
 
 auxSdr:
-  active: false
+  active: true
   centreFrequency: 70.0e+6
   bandwidth:  8.0e+6
   nChannels: 4096
@@ -35,8 +36,9 @@ auxSdr:
   sdrLabel: SDRplay Dev1 RSP1A 2238063199
   sdrId: 2238063199
   sampleIntegrationTime: 1
+  delay: 0
   sdrGain:  36
-  spectrometerMode: fft
+  spectrometerMode: pfb
   pfbParams:
     nTaps: 4
     appliedWindow: blackman
@@ -44,7 +46,7 @@ auxSdr:
     appliedWindow: Rectangular
 
 arduino:
-  active: true
+  active: false
   comPort: /dev/ttyACM0
   baudRate: 9600
 
@@ -59,16 +61,14 @@ arduino:
     cadence: 1
   
   switches:
-    active: true
+    active: false
     optimisedObserving: false
-    cycleLength: 60
+    cycleLength: 500
     primaryTarget:
     switchTargets:
-      - receiver_ant
-      - receiver_obsload
-      - receiver_ns
-      - receiver_short
-      - receiver_open
+    - load
+    - noisediode
+    - longopen
   
 switchDictionary:
   vna_short: t1t1e5
@@ -78,34 +78,38 @@ switchDictionary:
   vna_ns: t1t1e2
   vna_obsload: t1t1e3
   vna_ant: t1t1e4
-  receiver_obsload: t2t2e3
-  receiver_ns: t2t2e2
-  receiver_ant: t2t2e4
-  receiver_short: t2t2e5
-  receiver_open: t2t2e6
-  receiver_load: t2t2e7
-  receiver_longcable: t2t2e1
+  receiver_noisediode: t2t2e2
+  receiver_load: t2t2e3
+  receiver_antenna: t2t2e4
+  receiver_openlong: t2t2e1
+  receiver_shortlong: t1t2e1
+  receiver_longcomplex: t2t2e7
+  receiver_directcomplex: t2t2e8
+  load: t1t1e1
+  noisediode: t1t2e1
+  longopen: t2t1e1
 
 vna:
   active: false
   s11Only: true
   recalibrate: true
+  switching: false
   manualCalibration: true # true for manual calibration
-  calibrationPath: vna_calibration/vna_calibration # must be set either from exisiting or new
-  integrations: 25
+  customName: true
+  calibrationPath: vna_calibration/vna_calibration.txt # must be set either from exisiting or new
+  integrations: 15
   dataPoints: 250 # must be less than 500
   switchInterval: 1
   frequencyRange: # Hz
-    - 55e6
-    - 85e6 
+    - 55.0e+6
+    - 85.0e+6 
   switchTargets: # Path to VNA...
-     - receiver_ant
-     - receiver_obsload
-     - receiver_ns
-     - receiver_short
-     - receiver_open
+     - load
+     - noisediode
+     - longopen
   calibrationSwitchPaths: # Path from VNA to calibrators if using arduino to switch
     open: vna_open
     short: vna_short
     load: vna_load
     through: empty
+    
