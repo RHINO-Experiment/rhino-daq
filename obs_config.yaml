@@ -2,7 +2,7 @@
 
 
 observationParams:
-  runLength: 11000
+  runLength: 7200
   obsCachePath: /rhino-daq/obs_cache
   dataDirectory: /rhino-daq/data
   optimisedObserving: false
@@ -18,7 +18,7 @@ sdr:
   sdrLabel: SDRplay Dev0 RSPdx 2302031848
   sdrId: 2302031848
   sampleIntegrationTime: 1
-  delay: 600
+  delay: 2
   sdrGain: 36
   spectrometerMode: pfb
   pfbParams:
@@ -28,7 +28,7 @@ sdr:
     appliedWindow: Rectangular
 
 auxSdr:
-  active: true
+  active: false
   centreFrequency: 70.0e+6
   bandwidth:  8.0e+6
   nChannels: 4096
@@ -46,7 +46,7 @@ auxSdr:
     appliedWindow: Rectangular
 
 arduino:
-  active: false
+  active: true
   comPort: /dev/ttyACM0
   baudRate: 9600
 
@@ -61,41 +61,35 @@ arduino:
     cadence: 1
   
   switches:
-    active: false
+    active: true
     optimisedObserving: false
-    cycleLength: 500
+    cycleLength: 300
     primaryTarget:
     switchTargets:
     - load
-    - noisediode
-    - longopen
+    - noise_diode
+    - test_src
+    - open
+    - short
+    - long_open
+    - long_short
+
   
 switchDictionary:
-  vna_short: t1t1e5
-  vna_open: t1t1e6
-  vna_load: t1t1e7
-  vna_receiver: t2t2e8
-  vna_ns: t1t1e2
-  vna_obsload: t1t1e3
-  vna_ant: t1t1e4
-  receiver_noisediode: t2t2e2
-  receiver_load: t2t2e3
-  receiver_antenna: t2t2e4
-  receiver_openlong: t2t2e1
-  receiver_shortlong: t1t2e1
-  receiver_longcomplex: t2t2e7
-  receiver_directcomplex: t2t2e8
+  noise_diode: t1t1e2
   load: t1t1e1
-  noisediode: t1t2e1
-  longopen: t2t1e1
+  short: t1t1e7
+  open: t1t1e8
+  test_src: t1t1e6
+  long_open: t1t1e3
+  long_short: t2t2e3
 
 vna:
   active: false
-  s11Only: true
   recalibrate: true
-  switching: false
-  manualCalibration: true # true for manual calibration
-  customName: true
+  switching: true
+  manualCalibration: false # true for manual calibration
+  customName: false
   calibrationPath: vna_calibration/vna_calibration.txt # must be set either from exisiting or new
   integrations: 15
   dataPoints: 250 # must be less than 500
@@ -108,8 +102,8 @@ vna:
      - noisediode
      - longopen
   calibrationSwitchPaths: # Path from VNA to calibrators if using arduino to switch
-    open: vna_open
-    short: vna_short
-    load: vna_load
+    open: open
+    short: short
+    load: load
     through: empty
     

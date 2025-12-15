@@ -72,19 +72,19 @@ def calibrate_vna_switches(vna: pynanovna.VNA,
                            savepath: str = None):
    
    arduino.set_switch_state(vna_calibration_targets['load'])
-   time.sleep(1)
+   time.sleep(2)
    vna.calibration_step('load')
 
    arduino.set_switch_state(vna_calibration_targets['short'])
-   time.sleep(1)
+   time.sleep(2)
    vna.calibration_step('short')
 
    arduino.set_switch_state(vna_calibration_targets['open'])
-   time.sleep(1)
+   time.sleep(2)
    vna.calibration_step('open')
 
    arduino.set_switch_state(vna_calibration_targets['through'])
-   time.sleep(1)
+   time.sleep(2)
    vna.calibration_step('through')
 
    vna.calibrate()
@@ -103,13 +103,17 @@ def save_dict_into_hd5f(switch_targets_s11_dict: dict, freqs, filepath):
       for target, s11 in switch_targets_s11_dict.items():
          f.create_dataset(target, data=s11, dtype=s11.dtype)
 
-def save_into_hd5f(s11_mean, freqs, filepath):
+def save_into_hd5f(s11_mean,
+                   s21_mean,
+                   freqs,
+                   filepath):
    """
-   saves single .numpy file into hd5f
+   saves .numpy to hd5f
    """
    with h5py.File(filepath, mode='w') as f:
       f.create_dataset('Frequencies', data=freqs)
       f.create_dataset('s11', data=s11_mean, dtype=s11_mean.dtype)
+      f.create_dataset('s21', data=s21_mean, dtype=s21_mean.dtype)
 
 
 def main():
@@ -174,7 +178,7 @@ def main():
          s11_mean, _, freqs = switch_and_measure(target, vna, arduino, n_int)
          targetS11s[target] = s11_mean
    else:
-      s11_mean, _, freqs = measure_only(vna, n_int)
+      s11_mean, s21_mean, freqs = measure_only(vna, n_int)
    
 
    if not vna_config['customName']:
@@ -190,7 +194,7 @@ def main():
                           freqs=freqs,
                           filepath=filepath)
    else:
-      save_into_hd5f(s11_mean, freqs, filepath)
+      save_into_hd5f(s11_mean, s21_mean, freqs, filepath)
 
    print("VNA Measurements Complete")
 

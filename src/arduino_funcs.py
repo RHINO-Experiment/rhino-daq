@@ -57,14 +57,18 @@ class Arduino:
             self.serial.close()
         self.serial = None
     
-    def set_switch_state(self, switch_cmd):
+    def set_switch_state(self, switch_cmd, close=False):
         self.open()
-        time.sleep(0.2)
+        time.sleep(0.5)
         cmd = self.switch_dict[switch_cmd]
         print(cmd)
         self.serial.write(cmd.encode())
         print('Switched to ', switch_cmd)
-        time.sleep(0.2)
+        self.serial.write(cmd.encode())
+        time.sleep(0.5)
+        if close:
+            self.close()
+            time.sleep(0.2)
         #self.close()
         pass
 
