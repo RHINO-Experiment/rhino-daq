@@ -1,0 +1,109 @@
+# Observation Confiuration .yaml
+
+
+observationParams:
+  runLength: 7200
+  obsCachePath: /rhino-daq/obs_cache
+  dataDirectory: /rhino-daq/data
+  optimisedObserving: false
+  switchInstructions:
+  customName:
+
+sdr:
+  active: true
+  centreFrequency: 70.0e+6
+  bandwidth:  8.0e+6
+  nChannels: 4096
+  sdrDriver: sdrplay
+  sdrLabel: SDRplay Dev0 RSPdx 2302031848
+  sdrId: 2302031848
+  sampleIntegrationTime: 1
+  delay: 2
+  sdrGain: 36
+  spectrometerMode: pfb
+  pfbParams:
+    nTaps: 4
+    appliedWindow: blackman
+  fftParams:
+    appliedWindow: Rectangular
+
+auxSdr:
+  active: false
+  centreFrequency: 70.0e+6
+  bandwidth:  8.0e+6
+  nChannels: 4096
+  sdrDriver: sdrplay
+  sdrLabel: SDRplay Dev1 RSP1A 2238063199
+  sdrId: 2238063199
+  sampleIntegrationTime: 1
+  delay: 0
+  sdrGain:  36
+  spectrometerMode: pfb
+  pfbParams:
+    nTaps: 4
+    appliedWindow: blackman
+  fftParams:
+    appliedWindow: Rectangular
+
+arduino:
+  active: true
+  comPort: /dev/ttyACM0
+  baudRate: 9600
+
+  temperatureMonitoring:
+    active: true
+    obsRate: 1
+    nProbes: 2
+    probeLabels:
+    - load_monitoring
+    - ambient_monitoring
+    unit: celcius
+    cadence: 1
+  
+  switches:
+    active: true
+    optimisedObserving: false
+    cycleLength: 300
+    primaryTarget:
+    switchTargets:
+    - load
+    - noise_diode
+    - test_src
+    - open
+    - short
+    - long_open
+    - long_short
+
+  
+switchDictionary:
+  noise_diode: t1t1e2
+  load: t1t1e1
+  short: t1t1e7
+  open: t1t1e8
+  test_src: t1t1e6
+  long_open: t1t1e3
+  long_short: t2t2e3
+
+vna:
+  active: false
+  recalibrate: true
+  switching: true
+  manualCalibration: false # true for manual calibration
+  customName: false
+  calibrationPath: vna_calibration/vna_calibration.txt # must be set either from exisiting or new
+  integrations: 15
+  dataPoints: 250 # must be less than 500
+  switchInterval: 1
+  frequencyRange: # Hz
+    - 55.0e+6
+    - 85.0e+6 
+  switchTargets: # Path to VNA...
+     - load
+     - noisediode
+     - longopen
+  calibrationSwitchPaths: # Path from VNA to calibrators if using arduino to switch
+    open: open
+    short: short
+    load: load
+    through: empty
+    
