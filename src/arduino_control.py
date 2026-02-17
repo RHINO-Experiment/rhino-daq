@@ -34,6 +34,7 @@ def main():
     swtich_status = obs_config['arduino']['switches']['active']
     baud_rate = obs_config['arduino']['baudRate']
     com_port = obs_config['arduino']['comPort']
+    gcrObserving = obs_config['arduino']['switches']['gcrObserving']
 
     switch_dictionary = obs_config['switchDictionary']
 
@@ -78,6 +79,19 @@ def main():
         np.save(f'{obsCachePath}/switch_times.npy', arr=switch_times)
         print('Arduino Function Finished and Cached')
         return
+
+    if gcrObserving:
+        temperatures, temperature_times, \
+        switch_states, switch_times = arduino_funcs.gcr_continous_arduino_operation(arduino_object,
+                                                                                runLength,
+                                                                                temp_cadence,
+                                                                                cycleLength,
+                                                                                switch_targets)
+        np.save(f'{obsCachePath}/temperature_array.npy', arr=temperatures)
+        np.save(f'{obsCachePath}/temperature_times.npy', arr=temperature_times)
+        np.save(f'{obsCachePath}/switch_states.npy', arr=switch_states)
+        np.save(f'{obsCachePath}/switch_times.npy', arr=switch_times)
+        print('Arduino Function Finished and Cached')
 
     else:
         temperatures, temperature_times, \

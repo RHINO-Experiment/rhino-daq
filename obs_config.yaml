@@ -2,7 +2,7 @@
 
 
 observationParams:
-  runLength: 7200
+  runLength: 14400
   obsCachePath: /rhino-daq/obs_cache
   dataDirectory: /rhino-daq/data
   optimisedObserving: false
@@ -13,7 +13,7 @@ sdr:
   active: true
   centreFrequency: 70.0e+6
   bandwidth:  8.0e+6
-  nChannels: 4096
+  nChannels: 8192
   sdrDriver: sdrplay
   sdrLabel: SDRplay Dev0 RSPdx 2302031848
   sdrId: 2302031848
@@ -25,7 +25,7 @@ sdr:
     nTaps: 4
     appliedWindow: blackman
   fftParams:
-    appliedWindow: Rectangular
+    appliedWindow: Blackman
 
 auxSdr:
   active: false
@@ -35,15 +35,15 @@ auxSdr:
   sdrDriver: sdrplay
   sdrLabel: SDRplay Dev1 RSP1A 2238063199
   sdrId: 2238063199
-  sampleIntegrationTime: 1
+  sampleIntegrationTime: 5
   delay: 0
   sdrGain:  36
-  spectrometerMode: pfb
+  spectrometerMode: fft
   pfbParams:
     nTaps: 4
     appliedWindow: blackman
   fftParams:
-    appliedWindow: Rectangular
+    appliedWindow: Blackman
 
 arduino:
   active: true
@@ -63,10 +63,10 @@ arduino:
   switches:
     active: true
     optimisedObserving: false
-    cycleLength: 300
+    gcrObserving: true
+    cycleLength: 120
     primaryTarget:
     switchTargets:
-    - load
     - noise_diode
     - test_src
     - open
@@ -83,11 +83,12 @@ switchDictionary:
   test_src: t1t1e6
   long_open: t1t1e3
   long_short: t2t2e3
+  heated_load: t1t1e4
 
 vna:
   active: false
   recalibrate: true
-  switching: true
+  switching: true #
   manualCalibration: false # true for manual calibration
   customName: false
   calibrationPath: vna_calibration/vna_calibration.txt # must be set either from exisiting or new
