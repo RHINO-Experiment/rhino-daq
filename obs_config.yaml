@@ -64,7 +64,7 @@ arduino:
     active: true
     optimisedObserving: false
     gcrObserving: true
-    cycleLength: 120
+    DickeSwitchCycleLength: 120
     primaryTarget:
     switchTargets:
     - noise_diode
@@ -73,6 +73,19 @@ arduino:
     - short
     - long_open
     - long_short
+    switchSourceTargets:
+    - open
+    - short
+    - long_open
+    - long_short
+    - test_src
+    - test_src
+    - test_src
+    dickeSwitchCycle:
+    - noise_diode
+    - heated_load
+    - load
+    - source
 
   
 switchDictionary:
@@ -87,6 +100,7 @@ switchDictionary:
 
 vna:
   active: false
+  completeSparams: true
   recalibrate: true
   switching: true #
   manualCalibration: false # true for manual calibration

@@ -72,6 +72,80 @@ class Arduino:
         #self.close()
         pass
 
+
+def general_observing(arduino: Arduino,
+                      runLength:float,
+                      temperature_cadence,
+                      dickeSwitchCycleLength,
+                      switchSourceTargets,
+                      dickeSwitchCycle):
+    """
+    Docstring for general_observing
+    
+    :param arduino: Arduino Object to interface with
+    :type arduino: Arduino
+    :param runLength: Length in seconds of the observation
+    :type runLength: float
+    :param temperature_cadence: Temperature Sensor Cadence
+    :param dickeSwitchCycleLength: Length of Each Dicke Switch Cycle
+    :param switchSourceTargets: List of sources to observe, list of strings
+    :param dickeSwitchCycle: List of targets to use in every switch sycle e.g ['source', 'load', 'noise_diode', 'heated_load']
+    """
+    # split time between the dicke-switch targets
+    targetTime = dickeSwitchCycleLength / len(dickeSwitchCycle)
+
+    # set up end time
+    t = time.time()
+    t_end = t + runLength
+
+    # initialise the switching
+    sourceTarget = switchSourceTargets[0]
+    sourceIdx = 0
+
+    # set up the data arrays
+    temperatures = []
+    temperature_times = []
+    switch_states = []
+    switch_times = []
+
+    while t < t_end: # loop until end
+        for d in dickeSwitchCycle: # loop through the dicke switch cycle
+            if t > t_end:
+                pass # break the loop if t exceeds the observing time
+            else:
+                if d == 'source':
+                    arduino.set_switch_state(sourceTarget)
+                    switch_states.append(sourceTarget) # set the target to the source
+                else:
+                    arduino.set_switch_state(d)
+                    switch_states.append(d) # set the target to the dicke-switch target d
+                t = time.time()
+                switch_times.append(t) # get the time
+                t_switch = t + targetTime
+                while t < t_switch and t < t_end: # get temperatures while observing
+                    t = time.time()
+                    temp = arduino.read_temp()
+                    temperatures.append(temp)
+                    temperature_times.append(t)
+                    time.sleep(temperature_cadence) # sleep to allow for arduino to give new line
+                    pass
+                pass
+        # reset switch_idx if it gets to the end
+        sourceIdx += 1 # change to next switch state
+        if sourceIdx >= len(switchSourceTargets):
+            sourceIdx = 0 # roll back to top
+        sourceTarget = switchSourceTargets[sourceIdx] # set up next target
+        pass
+    # Convert the lists to Numpy arrays for saving
+    temperatures = np.array(temperatures)
+    temperature_times = np.array(temperature_times)
+    switch_states = np.array(switch_states, dtype='S')
+    switch_times = np.array(switch_times)
+
+    arduino.close() # Close arduino
+    return temperatures, temperature_times, switch_states, switch_times
+
+
 ####
 def gcr_continous_arduino_operation(arduino: Arduino,
                                     runLength:float,
@@ -238,6 +312,7 @@ def continous_equal_switching(arduino: Arduino,
     switch_states = []
     switch_times = []
     switch_target = switch_targets[0] # set initial position
+    switch_index = 0
     while t < t_f:
         arduino.set_switch_state(switch_target)
         t = time.time()
