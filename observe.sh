@@ -2,35 +2,20 @@
 # observe.sh
 
 
-end=$((SECONDS+57600))
+end=$((SECONDS+54000))
 
 sudo date -s "$(wget --method=HEAD -qSO- --max-redirect=0 google.com 2>&1 | sed -n 's/^ *Date: *//p')"
 
-echo "Launching RHINO Observing"
+echo "Launching RHINO Observing Program"
 
-yaml_path="/rhino-daq/obs_config.yaml"
+yaml_path="${1:-/rhino-daq/obs_config.yaml}" # Default to /rhino-daq/obs_config.yaml if no argument is provided
+log_path="/media/usb0/rhino-data/logs" # Default log path
 
-python3 src/vna_control.py --yaml $yaml_path
+$(date +"%Y%m%d_%H%M%S")
+./prerun_observe.sh $yaml_path \
+    2>&1 | tee $log_path/pr_$(date +"%Y%m%d_%H%M%S").log
 
 while [ $SECONDS -lt $end ]; do
-    # Launch both SDR scripts in parallel and arduino script
-    python3 src/sdr_control.py --yaml $yaml_path &
-    PID1=$!
-
-    python3 src/aux_sdr_control.py --yaml $yaml_path &
-    PID2=$!
-
-    python3 src/arduino_control.py --yaml $yaml_path
-    PID3=$!
-
-    # Wait for all to finish
-    wait $PID1
-    wait $PID2
-    wait $PID3
-
-    echo "All obs programs completed."
-
-    python3 src/process_cache.py
-
-    echo "Observation Block Complete"
+    ./block_observe.sh $yaml_path \
+        2>&1 | tee $log_path/obs_$(date +"%Y%m%d_%H%M%S").log
 done
