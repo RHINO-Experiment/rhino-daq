@@ -8,7 +8,8 @@ import datetime
 import argparse
 import pickle
 from h5py import string_dtype
-
+import prerun_config
+import config
 
 
 def save_dict_to_group(group: h5py.Group, data: dict, pickle_fallback: bool = True):
@@ -85,38 +86,35 @@ def main():
                         default='/rhino-daq/obs_config.yaml',
                         help='Config .yaml filepath')
     
+    parser.add_argument('--prerun',
+                        action='store_true',
+                        help='Runs the Script in Prerun Mode')
+
     args = parser.parse_args()
 
     yaml_path = args.yaml
+
+    if args.prerun:
+        params = prerun_config.return_cache_params(yaml_path)
+    else:
+        params = config.return_cache_params(yaml_path)
+
 
     with open(yaml_path,'r') as f:
         obs_config = yaml.safe_load(f) # load the .yaml as a list to get settings
         pass
 
-    final_data_destination = obs_config['observationParams']['dataDirectory']
-    cached_path = obs_config['observationParams']['obsCachePath']
+    final_data_destination = params['final_data_destination']
+    cached_path = params['cached_path']
+    filename = params['filename']
+
 
     data_update_status = np.load(f'{cached_path}/new_data_bool.npy')
     # True if data has not been processed yet
     if not data_update_status:
         return
 
-    try:
-        mock_data_status = np.load(f'{cached_path}/mock_data_bool.npy')
-    except:
-        mock_data_status = False
-
-    # Set up a custom name for the file or go with the time/date the function was ran
-    if obs_config['observationParams']['customName'] is None:
-        currentTime = datetime.datetime.now()
-        if mock_data_status:
-            filename = currentTime.strftime("%Y-%m-%d_%H-%M-%S_mock")
-        else:
-            filename = currentTime.strftime("%Y-%m-%d_%H-%M-%S_obs")
-    else:
-        filename = obs_config['observationParams']['dataDirectory']['customName']
-
-    with h5py.File(f'{final_data_destination}/{filename}.hd5f', mode='a') as f:
+    with h5py.File(f'{final_data_destination}/{filename}.hdf5', mode='a') as f:
         sdr_group = f.create_group('sdr')
         aux_sdr_group = f.create_group('aux_sdr')
         temperature_group = f.create_group('temperatures')
@@ -129,9 +127,16 @@ def main():
             sdr_waterfall = np.load(f'{cached_path}/sdr_waterfall.npy')
             sdr_freqs = np.load(f'{cached_path}/sdr_freqs.npy')
             sdr_times = np.load(f'{cached_path}/sdr_times.npy')
+            max_i_adc = np.load(f'{cached_path}/max_i_adc.npy')
+            max_q_adc = np.load(f'{cached_path}/max_q_adc.npy')
+
             sdr_group.create_dataset('sdr_waterfall', data=sdr_waterfall, dtype=sdr_waterfall.dtype)
             sdr_group.create_dataset('sdr_freqs', data=sdr_freqs, dtype=sdr_freqs.dtype)
             sdr_group.create_dataset('sdr_times', data=sdr_times, dtype=sdr_times.dtype)
+            sdr_group.create_dataset('max_i_adc', data=max_i_adc,
+                                     dtype=max_i_adc.dtype)
+            sdr_group.create_dataset('max_q_adc',data=max_q_adc,
+                                     dtype=max_q_adc.dtype)
             pass
         else: # else create empty data sets
             sdr_group.create_dataset('sdr_waterfall', dtype="f")
@@ -142,6 +147,7 @@ def main():
             aux_sdr_waterfall = np.load(f'{cached_path}/aux_sdr_waterfall.npy')
             aux_sdr_freqs = np.load(f'{cached_path}/aux_sdr_freqs.npy')
             aux_sdr_times = np.load(f'{cached_path}/aux_sdr_times.npy')
+            aux_max_adc = np.load(f'{cached_path}/aux_max_adc.npy')
             aux_sdr_group.create_dataset('aux_sdr_waterfall',
                                          data=aux_sdr_waterfall,
                                          dtype=aux_sdr_waterfall.dtype)
@@ -151,6 +157,8 @@ def main():
             aux_sdr_group.create_dataset('aux_sdr_times',
                                          data=aux_sdr_times,
                                          dtype=aux_sdr_times.dtype)
+            aux_sdr_group.create_dataset('aux_max_adc', data=aux_max_adc,
+                                         dtype=aux_max_adc.dtype)
         else: # else create empty data sets
             aux_sdr_group.create_dataset('aux_sdr_waterfall', dtype="f")
             aux_sdr_group.create_dataset('aux_sdr_freqs', dtype="f")
@@ -193,7 +201,7 @@ def main():
     np.save(f'{cached_path}/new_data_bool.npy', False)
     np.save(f'{cached_path}/mock_data_bool.npy', False)
 
-    print('Data Processed into hd5f.')
+    print('Data Processed into hdf5.')
     pass
     
 if __name__ == "__main__":

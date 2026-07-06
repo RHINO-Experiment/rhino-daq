@@ -2,24 +2,27 @@
 
 
 observationParams:
-  runLength: 14400
-  obsCachePath: /rhino-daq/obs_cache
-  dataDirectory: /rhino-daq/data
+  runLength: 21600
+  preRunLength: 600
+  obsCachePath: /media/usb0/rhino-data/obs_cache
+  dataDirectory: /media/usb0/rhino-data/data
+  preRunDirectory: /media/usb0/rhino-data/prerun
   optimisedObserving: false
-  switchInstructions:
   customName:
 
 sdr:
   active: true
   centreFrequency: 70.0e+6
-  bandwidth:  8.0e+6
-  nChannels: 8192
+  bandwidth:  10.0e+6
+  nChannels: 4069
   sdrDriver: sdrplay
   sdrLabel: SDRplay Dev0 RSPdx 2302031848
   sdrId: 2302031848
-  sampleIntegrationTime: 1
+  sampleIntegrationTime: 3
   delay: 2
-  sdrGain: 36
+  sdrGain: None
+  sdrRFGR: 3
+  sdrIFGR: 30
   spectrometerMode: pfb
   pfbParams:
     nTaps: 4
@@ -30,15 +33,17 @@ sdr:
 auxSdr:
   active: false
   centreFrequency: 70.0e+6
-  bandwidth:  8.0e+6
+  bandwidth:  10.0e+6
   nChannels: 4096
   sdrDriver: sdrplay
   sdrLabel: SDRplay Dev1 RSP1A 2238063199
   sdrId: 2238063199
-  sampleIntegrationTime: 5
-  delay: 0
-  sdrGain:  36
-  spectrometerMode: fft
+  sampleIntegrationTime: 3
+  delay: 2
+  sdrGain: None
+  sdrRFGR: 3
+  sdrIFGR: 30
+  spectrometerMode: pfb
   pfbParams:
     nTaps: 4
     appliedWindow: blackman
@@ -63,40 +68,29 @@ arduino:
   switches:
     active: true
     optimisedObserving: false
-    gcrObserving: true
     DickeSwitchCycleLength: 120
-    primaryTarget:
-    switchTargets:
-    - noise_diode
-    - test_src
-    - open
-    - short
-    - long_open
-    - long_short
     switchSourceTargets:
     - open
     - short
     - long_open
     - long_short
     - test_src
-    - test_src
-    - test_src
     dickeSwitchCycle:
     - noise_diode
     - heated_load
     - load
     - source
-
   
 switchDictionary:
-  noise_diode: t1t1e2
+  noise_diode: t1t1e4
   load: t1t1e1
-  short: t1t1e7
-  open: t1t1e8
-  test_src: t1t1e6
-  long_open: t1t1e3
-  long_short: t2t2e3
-  heated_load: t1t1e4
+  short: t1t1e3
+  open: t1t1e2
+  long_open: t1t1e5
+  long_short: t2t2e5
+  heated_load: t1t1e6
+  antenna: t1t1e7
+  test_src: t1t1e7
 
 vna:
   active: false

@@ -8,6 +8,9 @@ import argparse
 import yaml
 import fft_funcs
 import pfb_funcs
+import prerun_config
+import config
+
 
 def measure_spectra(sampleIntegrationTime,
                     runLength,
@@ -17,6 +20,8 @@ def measure_spectra(sampleIntegrationTime,
                     sdrDriver, 
                     sdrId,
                     sdrGain,
+                    sdrIFGR,
+                    sdrRFGR,
                     sdrLabel,
                     spectrometerMode,
                     nTaps,
@@ -45,7 +50,16 @@ def measure_spectra(sampleIntegrationTime,
     print("SDR:","hardware info", sdr.getHardwareInfo())
 
     sdr.setGainMode(SOAPY_SDR_RX, rx_chan, False) # turn ON AGC
-    sdr.setGain(SOAPY_SDR_RX, rx_chan, sdrGain)
+
+    
+    sdr.setGain(SOAPY_SDR_RX, rx_chan, "RFGR", sdrRFGR) # set RF gain
+    sdr.setGain(SOAPY_SDR_RX, rx_chan, "IFGR", sdrIFGR) # set IF gain
+
+    print("Current RF Gain:", sdr.getGain(SOAPY_SDR_RX, rx_chan, "RFGR"))
+    print("Current IF Gain:", sdr.getGain(SOAPY_SDR_RX, rx_chan, "IFGR"))
+
+    if sdrGain is not None:
+        sdr.setGain(SOAPY_SDR_RX, rx_chan, sdrGain)
     rxStream = sdr.setupStream(SOAPY_SDR_RX, SOAPY_SDR_CF32, [rx_chan])
 
     print("hardware info", sdr.getHardwareInfo())
@@ -59,6 +73,14 @@ def measure_spectra(sampleIntegrationTime,
 
     sdr.writeSetting("rfnotch_ctrl", "true") # set notches
     sdr.writeSetting("dabnotch_ctrl", "true")
+    #sdr.writeSetting("biasT_ctrl", "false")
+
+    sdr.writeSetting(SOAPY_SDR_RX, rx_chan, "rfnotch_ctrl", "true")
+    sdr.writeSetting(SOAPY_SDR_RX, rx_chan, "dabnotch_ctrl", "true")
+
+    # Enable RF notch filters
+
+    sdr.writeSetting(SOAPY_SDR_RX, rx_chan,"fmmnotch_ctrl", "true")  # FM broadcast notch
 
     print("RF gain idx:", sdr.readSetting("rfgain_sel"))
 
@@ -76,6 +98,9 @@ def measure_spectra(sampleIntegrationTime,
 
     waterfall_spectra = []
     times = []
+    max_i_adc = []
+    max_q_adc = []
+
     t = time.time()
     while t < t_f:
         buffs = []
@@ -100,7 +125,14 @@ def measure_spectra(sampleIntegrationTime,
         waterfall_spectra.append(spectra)
         times.append(time.time())
         t = time.time()
+        max_adc_i = np.max(np.real(np.array(buffs)))
+        max_adc_q = np.max(np.imag(np.array(buffs)))
+        max_i_adc.append(max_adc_i)
+        max_q_adc.append(max_adc_q)
         print(t)
+        print(f"Max ADC I: {max_adc_i}")
+        print(f'Max ADC Q: {max_adc_q}')
+        print(f'Remaining: {t_f - t} s')
         pass
 
     sdr.deactivateStream(rxStream) #stop streaming
@@ -109,10 +141,13 @@ def measure_spectra(sampleIntegrationTime,
     print('SDRPlay Stream Deactivated')
     waterfall_spectra = np.array(waterfall_spectra)
     times = np.array(times)
+    max_i_adc = np.array(max_i_adc)
+    max_q_adc = np.array(max_q_adc)
+
     freqs = np.linspace(-bandwidth/2/1e6 + centre_frequency/1e6, 
                                               bandwidth/2/1e6 + centre_frequency/1e6,
                                               nChannels)
-    return waterfall_spectra, times, freqs
+    return waterfall_spectra, times, freqs, max_i_adc, max_q_adc
 
 
 def main():
@@ -123,55 +158,56 @@ def main():
                         default='/rhino-daq/obs_config.yaml',
                         help='Config .yaml filepath')
     
+    parser.add_argument('--prerun',
+                        action='store_true',
+                        help='Runs the Script in Prerun Mode')
+
     args = parser.parse_args()
 
     yaml_path = args.yaml
+    pre_run_status = args.prerun
 
-    sdr_config_path = 'sdr'
-
-    with open(yaml_path,'r') as f:
-        obs_config = yaml.safe_load(f) # load the .yaml as a list to get settings
-        pass
     # Observation Parameters
 
-    runLength = obs_config['observationParams']['runLength']
-    obsCachePath = obs_config['observationParams']['obsCachePath']
+    if pre_run_status:
+        params = prerun_config.return_sdr_params(yaml_path)
+    else:
+        params = config.return_sdr_params(yaml_path)
 
-    sdr_config = obs_config[sdr_config_path]
-    active = sdr_config['active']
+    runLength = params['runLength']
+    obsCachePath = params['obsCachePath']
+    active = params['active']
+    centreFrequency = params['centreFrequency']
+    bandwidth = params['bandwidth']
+    nChannels = params['nChannels']
+    sdrDriver = params['sdrDriver']
+    sdrLabel = params['sdrLabel']
+    sdrId = params['sdrId']
+    sampleIntegrationTime = params['sampleIntegrationTime']
+    spectrometerMode = params['spectrometerMode']
+    sdrGain = params['sdrGain']
+    sdrRFGR = params['sdrRFGR']
+    sdrIFGR = params['sdrIFGR']
+    delay = params['delay']
+    nTaps = params['nTaps']
+    appliedWindow = params['appliedWindow']
     if not active: # returns from main if the program is not active
         return
-    centreFrequency = sdr_config['centreFrequency']
-    bandwidth = sdr_config['bandwidth']
-    nChannels = sdr_config['nChannels']
-    sdrDriver = sdr_config['sdrDriver']
-    sdrLabel = sdr_config['sdrLabel']
-    sdrId = sdr_config['sdrId']
-    sampleIntegrationTime = sdr_config['sampleIntegrationTime']
-    spectrometerMode = sdr_config['spectrometerMode']
-    sdrGain = sdr_config['sdrGain']
-    delay = sdr_config['delay']
-
-    if spectrometerMode == 'pfb':
-        nTaps = sdr_config['pfbParams']['nTaps']
-        appliedWindow = sdr_config['pfbParams']['appliedWindow']
-    else:
-        nTaps = None
-        appliedWindow = sdr_config['fftParams']['appliedWindow']
-
     # add delay , runLength = runLength - delay
     runLength = runLength - delay
 
     time.sleep(delay)
 
-    waterfall_spectra, times, freqs = measure_spectra(sampleIntegrationTime = sampleIntegrationTime,
+    waterfall_spectra, times, freqs, max_i_adc, max_q_adc = measure_spectra(sampleIntegrationTime = sampleIntegrationTime,
                                                       runLength = runLength,
                                                       centre_frequency = centreFrequency,
                                                       bandwidth = bandwidth,
                                                       nChannels = nChannels,
-                                                      sdrDriver = sdrDriver, 
+                                                      sdrDriver = sdrDriver,
                                                       sdrId = sdrId,
                                                       sdrGain = sdrGain,
+                                                      sdrRFGR=sdrRFGR,
+                                                      sdrIFGR=sdrIFGR,
                                                       sdrLabel = sdrLabel,
                                                       spectrometerMode = spectrometerMode,
                                                       nTaps = nTaps,
@@ -180,6 +216,8 @@ def main():
     np.save(f'{obsCachePath}/sdr_waterfall.npy', arr=waterfall_spectra)
     np.save(f'{obsCachePath}/sdr_times.npy', arr=times)
     np.save(f'{obsCachePath}/sdr_freqs.npy', arr=freqs)
+    np.save(f'{obsCachePath}/max_i_adc.npy', arr=max_i_adc)
+    np.save(f'{obsCachePath}/max_q_adc.npy', arr=max_q_adc)
 
     np.save(f'{obsCachePath}/new_data_bool.npy', True)
     print('Data Cached')

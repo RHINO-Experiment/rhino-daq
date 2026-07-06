@@ -63,7 +63,9 @@ class Arduino:
         cmd = self.switch_dict[switch_cmd]
         print(cmd)
         self.serial.write(cmd.encode())
+        print('------------------------------')
         print('Switched to ', switch_cmd)
+        print('------------------------------')
         self.serial.write(cmd.encode())
         time.sleep(0.5)
         if close:
