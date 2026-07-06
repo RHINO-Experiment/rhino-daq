@@ -1,7 +1,7 @@
 #!/bin/bash
-# observe.sh
+# prerun_observe.sh
 
-echo "Launching RHINO ReRun"
+echo "Launching RHINO ReRun Observation..."
 
 yaml_path="${1:-/rhino-daq/obs_config.yaml}"
 

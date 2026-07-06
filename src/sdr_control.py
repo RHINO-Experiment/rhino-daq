@@ -220,7 +220,7 @@ def main():
     np.save(f'{obsCachePath}/max_q_adc.npy', arr=max_q_adc)
 
     np.save(f'{obsCachePath}/new_data_bool.npy', True)
-    print('Data Cached')
+    print('SDR Data Cached')
     pass
 
 if __name__ == "__main__":
