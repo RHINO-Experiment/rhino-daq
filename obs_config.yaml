@@ -21,8 +21,8 @@ sdr:
   sampleIntegrationTime: 3
   delay: 2
   sdrGain: None
-  sdrRFGR: 3
-  sdrIFGR: 30
+  sdrRFGR: 8
+  sdrIFGR: 39
   spectrometerMode: pfb
   pfbParams:
     nTaps: 4
@@ -41,8 +41,8 @@ auxSdr:
   sampleIntegrationTime: 3
   delay: 2
   sdrGain: None
-  sdrRFGR: 3
-  sdrIFGR: 30
+  sdrRFGR: 9
+  sdrIFGR: 42
   spectrometerMode: pfb
   pfbParams:
     nTaps: 4
@@ -70,27 +70,35 @@ arduino:
     optimisedObserving: false
     DickeSwitchCycleLength: 120
     switchSourceTargets:
+    - antenna
+    - antenna
+    - test_src
+    - antenna
+    - antenna
+    - test_src
+    - antenna
+    - antenna
+    - test_src
     - open
     - short
     - long_open
     - long_short
-    - test_src
     dickeSwitchCycle:
     - noise_diode
     - heated_load
     - load
     - source
-  
-switchDictionary:
-  noise_diode: t1t1e4
-  load: t1t1e1
-  short: t1t1e3
-  open: t1t1e2
-  long_open: t1t1e5
-  long_short: t2t2e5
-  heated_load: t1t1e6
-  antenna: t1t1e7
-  test_src: t1t1e7
+
+  switchDictionary:
+    noise_diode: t1t1e4
+    load: t1t1e1
+    short: t1t1e3
+    open: t1t1e2
+    long_open: t1t1e5
+    long_short: t2t2e5
+    heated_load: t1t1e6
+    antenna: t1t1e7
+    test_src: t1t1e8
 
 vna:
   active: false
