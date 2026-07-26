@@ -18,45 +18,124 @@ def measure_spectra(sampleIntegrationTime,
                     sdrId,
                     sdrGain,
                     sdrLabel,
-                    spectrometerMode,
-                    nTaps,
-                    appliedWindow):
-    
+                    spectrometerMode='fft',
+                    nTaps=None,
+                    appliedWindow='Rectangular',
+                    nthin=1,
+                    enableAGC=False,
+                    verbose=True):
+    """
+    Use the Soapy SDR library to acquire samples from an SDR device.
+
+    Parameters:
+        sampleIntegrationTime (float):
+            Duration of each sample, in seconds. This is used to set 
+            the number of samples as `nsamp = integ_time * bandwidth / nchannels`. 
+
+        runLength (int):
+            How long to run the measurement for, in seconds.
+        
+        centre_frequency (float):
+            Centre frequency of the observation, in Hz.
+
+        bandwidth (float):
+            Observing bandwidth, in Hz. This should be chosen with knowledge of the 
+            SDR's capabilities.
+        
+        nChannels (int):
+            Number of frequency channels to make across the observation. For FFT-based 
+            channelisation, it makes most sense to use a power of 2.
+
+        sdrDriver (str):
+            Soapy SDR driver name, e.g. 'sdrplay'.
+
+        sdrId (int):
+            SDR ID number. This is not currently used for anything.
+
+        sdrGain (int):
+            Fixed gain level setting for the SDR. You may need to refer to the SDR or 
+            Soapy driver documentation to determine what this number means (it may not 
+            simply be a gain value in dB).
+
+        sdrLabel (str):
+            Text label to identify the SDR. This is not currently used for anything.
+
+        spectrometerMode (str):
+            Whether to use FFT or polyphase filter bank channelisation. The default 
+            is FFT. Options are `fft` or `pfb`.
+        
+        nTaps (int):
+            If the spectrometerMode is set to `pfb`, how many taps to use.
+        
+        appliedWindow (str):
+            Which window function (taper) to use when doing the channelisation. 
+            Options are `Blackman`, `BlackmanHarris`, `Rectangular`, `Cosine`.
+        
+        nthin (int):
+            Thinning factor for samples.
+
+        enableAGC (bool):
+            Whether to enable the SDR's AGC (automatic gain control). This should normally 
+            be False, but it can be useful to enable it for debugging sometimes.
+        
+        enableNotch (bool):
+            Whether to enable the SDR's notch filters. This is currently specific to RSP 
+            SDRs, and will set the settings `rfnotch_ctrl` and `dabnotch_ctrl` to True.
+
+        verbose (bool):
+            Whether to print debug/status info.
+
+    Returns:
+        
+    """
+    # Check for valid arguments
+    if spectrometerMode not in ['fft', 'pfb']:
+        raise ValueError("spectrometerMode must be 'fft' or 'pfb'")
+    if appliedWindow not in fft_funcs.window_dict.keys():
+        raise ValueError("appliedWindow must be one of: %s" % ( list(fft_funcs.window_dict.keys())) )
+
+    # Determine spectrometer mode and set channelisation settings   
     if spectrometerMode == 'fft':
+        # FFT channelisation
         win_coeffs = fft_funcs.window_dict[appliedWindow](nChannels) # get fft window
         nsamp = int(sampleIntegrationTime * bandwidth / nChannels) # fft_case number of frames for each fft
         spectrometer_func = fft_funcs.buffs_to_powers
         nStream = nChannels
         nTaps = None
     else:
+        # Polyphase filter bank channelisation
         win_coeffs = pfb_funcs.create_window(appliedWindow, nChannels, nTaps)
         nsamp = int(sampleIntegrationTime * bandwidth / (nChannels*nTaps)) # pfb number of frames for each pfb
         spectrometer_func = pfb_funcs.buffs_to_powers
         nStream = nChannels * nTaps
 
-    nthin = 1
-    print('nsamp', nsamp)
+    if verbose:
+        print('nsamp', nsamp)
+    
+    # Initialise the SDR with the intended frequency, bandwidth, and receiving modes
     rx_chan = 0 # only 1 channel on RSP1A
     sdr = SoapySDR.Device(dict(driver=sdrDriver, label=sdrLabel))
     sdr.setSampleRate(SOAPY_SDR_RX, rx_chan, bandwidth)
     sdr.setFrequency(SOAPY_SDR_RX, rx_chan, centre_frequency)
-    sdr.setBandwidth(SOAPY_SDR_RX, rx_chan, int(bandwidth)) # intialises the SDR with settings
+    sdr.setBandwidth(SOAPY_SDR_RX, rx_chan, int(bandwidth))
 
-    print("SDR:","hardware info", sdr.getHardwareInfo())
-
-    sdr.setGainMode(SOAPY_SDR_RX, rx_chan, False) # turn ON AGC
+    # Set SDR gain and set-up data stream
+    sdr.setGainMode(SOAPY_SDR_RX, rx_chan, enableAGC)
     sdr.setGain(SOAPY_SDR_RX, rx_chan, sdrGain)
-    rxStream = sdr.setupStream(SOAPY_SDR_RX, SOAPY_SDR_CF32, [rx_chan])
+    rxStream = sdr.setupStream(SOAPY_SDR_RX, SOAPY_SDR_CF32, [rx_chan]) # returns complex 32-bit float
 
-    print("hardware info", sdr.getHardwareInfo())
-
+    # Start 
     status = sdr.activateStream(rxStream) #start streaming
-    print("Stream MTU:", sdr.getStreamMTU(rxStream))
-    print("Activate status:", status)
-    print("Current gain:", sdr.getGain(SOAPY_SDR_RX, rx_chan))
-    print("Current Gain Mode, AGC:", sdr.getGainMode(SOAPY_SDR_RX, rx_chan)) # check if AGC is on
-    print("")
+    
+    if verbose:
+        print("hardware info", sdr.getHardwareInfo())
+        print("Stream MTU:", sdr.getStreamMTU(rxStream))
+        print("Activate status:", status)
+        print("Current gain:", sdr.getGain(SOAPY_SDR_RX, rx_chan))
+        print("Current Gain Mode, AGC:", sdr.getGainMode(SOAPY_SDR_RX, rx_chan)) # check if AGC is on
+        print("")
 
+    # Set RF and DAB notch filters
     sdr.writeSetting("rfnotch_ctrl", "true") # set notches
     sdr.writeSetting("dabnotch_ctrl", "true")
 
