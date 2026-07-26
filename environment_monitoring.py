@@ -17,11 +17,12 @@ import json
 
 
 class AirspaceRecorder:
-    def __init__(self, latitude, longitude, n2yo_api_key=None, bounding_delta=0.2):
+    def __init__(self, latitude, longitude, n2yo_api_key=None, bounding_delta=0.2, sat_search_radius=30):
         """Initializes the recorder with a target location and optional API key."""
         self.lat = latitude
         self.lon = longitude
         self.n2yo_api_key = n2yo_api_key
+        self.sat_search_radius = sat_search_radius
 
         self.bounding_box = {
             "lamin": latitude - bounding_delta,
@@ -35,10 +36,11 @@ class AirspaceRecorder:
         )
 
         self.data_store = {
-            "weather": [],
-            "flights": [],
-            "satellites": [],
-            "celestial": [],
+            "weather":      [],
+            "flights":      [],
+            "satellites":   [],
+            "celestial":    [],
+            "ionosphere":   []
         }
 
     def fetch_flights(self):
@@ -73,7 +75,7 @@ class AirspaceRecorder:
         if not self.n2yo_api_key:
             return None
 
-        search_radius = 89  # 60 #45 # search close to horizon
+        search_radius = self.sat_search_radius # 60 #45 # search close to horizon
         category_id = 0
         url = (
             f"https://api.n2yo.com/rest/v1/satellite/above/"
@@ -116,7 +118,43 @@ class AirspaceRecorder:
                 "elevation_deg": galactic_centre.alt.deg,
             },
         ]
-
+    
+    def fetch_ionosphere(self):
+        """
+        Fetches near-real-time Total Electron Content (TEC) data 
+        for the recorder's coordinates. 
+        """
+        # NOAA SWPC provides global GPS-TEC ASCII/JSON text feeds and maps.
+        # Alternatively, you can query regional services (like ESA's SWE network).
+        # Example endpoint structure pointing to current solar-geophysical data:
+        #url = "https://services.swpc.noaa.gov/json/geospace/geospace_tec_latest.json"
+        url = "https://services.swpc.noaa.gov/json/geospace/geospace_dst_1_hour.json"
+        
+        try:
+          response = requests.get(url, timeout=10)
+          if response.status_code == 200:
+            data = response.json()
+            
+            # If querying a gridded product, find the grid point closest to self.lat, self.lon
+            # (This block parses typical JSON grid structures mapping lat/lon to TECU)
+            for entry in data:
+              if "lat" in entry and "lon" in entry:
+                # Match closest coordinate cell (assuming 1-degree or 5-degree resolution grids)
+                if abs(entry["lat"] - self.lat) < 1.0 and abs(entry["lon"] - self.lon) < 1.0:
+                  return {
+                      "tec_units": entry.get("tec", entry.get("value")),
+                      "quality": entry.get("quality", "N/A")
+                  }
+                  
+            # Fallback if specific point match isn't structured in a flat list:
+            return {"tec_units": "Grid point out of direct JSON range, check IONEX stream"}
+            
+        except Exception as e:
+          print(f"Ionosphere API error: {e}")
+          
+        return None
+    
+    
     def calculate_flight_azel(self, flight_record, current_time):
         """Converts a flight record's lat/lon/altitude into local Azimuth and Elevation."""
         try:
@@ -167,7 +205,7 @@ class AirspaceRecorder:
         """Executes a single data collection cycle and appends to dictionaries."""
         timestamp_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
-        # 1. Celestial Bodies
+        # (1) Celestial Bodies
         celestial_results = self.fetch_celestial_bodies(timestamp_str)
         for body in celestial_results:
             self.data_store["celestial"].append(
@@ -179,7 +217,7 @@ class AirspaceRecorder:
                 }
             )
 
-        # 2. Weather
+        # (2) Weather
         weather = self.fetch_weather()
         if weather:
             self.data_store["weather"].append(
@@ -192,7 +230,7 @@ class AirspaceRecorder:
                 }
             )
 
-        # 3. Flights (with Az/El calculation)
+        # (3) Flights (with Az/El calculation)
         states = self.fetch_flights()
         if states:
             flight_count = 0
@@ -223,7 +261,7 @@ class AirspaceRecorder:
         else:
             print(f"[{timestamp_str}] No flights recorded.")
 
-        # 4. Satellites
+        # (4) Satellites
         satellites = self.fetch_satellites()
 
         if satellites:
@@ -246,6 +284,12 @@ class AirspaceRecorder:
                 self.data_store["satellites"].append(sat_record)
                 sat_count += 1
             print(f"[{timestamp_str}] Logged {sat_count} satellites.")
+        
+        # (5) Ionosphere
+        # FIXME: Needs fixing
+        #ionosphere = self.fetch_ionosphere()
+        #self.data_store["ionosphere"].append(ionosphere)
+        
 
     def run(self, interval_seconds=60, max_iter=None, verbose=False):
         """Starts the continuous polling loop."""
@@ -287,9 +331,10 @@ if __name__ == "__main__":
         bounding_delta=0.3,
         n2yo_api_key=n2yo_api_key,
     )
-    asrec.run(max_iter=1, verbose=False)
+    asrec.run(max_iter=1, verbose=True)
     print("Ready to plot")
-
+    
+    """
     import pylab as plt
 
     plt.subplot(111)
@@ -318,3 +363,4 @@ if __name__ == "__main__":
             pass
 
     plt.show()
+    """
