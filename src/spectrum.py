@@ -39,7 +39,8 @@ def pfb_fir_frontend(x, win_coeffs, nTaps, nChannels):
 
 def pfb_filterbank(x, win_coeffs, nTaps, nChannels):
     """ 
-    Based on Danny Price's PFB notebook
+    Channelise data using a polyphase filterbank. Based on Danny Price's PFB 
+    notebook.
     
     Parameters:
         x (array_like):
@@ -50,6 +51,10 @@ def pfb_filterbank(x, win_coeffs, nTaps, nChannels):
             Number of taps.
         P (int):
             Final number of channels.
+     
+    Returns:
+        psd (array_like):
+            Power vs. frequency channelised according to the PFB.
     """
     x_fir = pfb_fir_frontend(x, win_coeffs, nTaps, nChannels)
     x_pfb = np.fft.fft(x_fir)
@@ -88,15 +93,20 @@ def buffer_to_psd_pfb(frame_set, win_coeffs, nChannels, nTaps, daq_status=None):
             and should be excluded.
     """
     # Calculate spectra using PFB
-    spectra = np.array([pfb_filterbank(b, win_coeffs, nTaps, nChannels) 
+    psd = np.array([pfb_filterbank(b, win_coeffs, nTaps, nChannels) 
                         for b in frame_set])
     
     # Use DAQ status flags to exclude frames with error flags
     if daq_status is not None:
         idxs = np.where(daq_status >= 0)
-        return np.fft.fftshift( np.mean(spectra[idxs], axis=0) )
+        
+        # Average along time axis and shift into frequency channel ordering
+        y = np.fft.fftshift( np.mean(psd[idxs], axis=0) )
+        if y.size == 0:
+            return np.zeros_like(psd[0]) # handle empty average
+        return y 
     else:
-        return np.fft.fftshift( np.mean(spectra, axis=0) )
+        return np.fft.fftshift( np.mean(psd, axis=0) )
 
 
 def buffer_to_psd_fft(frame_set, win_coeffs, nChannels, nTaps=None, daq_status=None):
@@ -128,6 +138,9 @@ def buffer_to_psd_fft(frame_set, win_coeffs, nChannels, nTaps=None, daq_status=N
         idxs = np.where(daq_status >= 0)
         
         # Average along time axis and shift into frequency channel ordering
-        return np.fft.fftshift( np.mean(psd[idxs], axis=0) )
+        y = np.fft.fftshift( np.mean(psd[idxs], axis=0) )
+        if y.size == 0:
+            return np.zeros_like(psd[0]) # handle empty average
+        return y
     else:
         return np.fft.fftshift( np.mean(psd, axis=0) )
