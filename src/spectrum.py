@@ -9,30 +9,6 @@ window_dict = {
                 'Rectangular':       np.ones,
                 'Cosine':            windows.cosine
               }
-
-
-def buffer_to_psd_fft(frame_set, win_coeffs, nChannels, nTaps=None):
-    """
-    Channelise and accumulate IQ samples into a single PSD (spectrum) time 
-    sample, using a windowed FFT for channelisation. 
-    
-    Parameters:
-        frame_set (array_like):
-            Complex array of IQ samples from the ADC, of shape 
-            `(time_samples, freq_samples)`.
-        win_coeffs (array_like):
-            Window coeffcients generated using `create_window()`.
-        nChannels (int):
-            Number of frequency channels to produce.
-        nTaps (int):
-            Number of taps. This parameter is ignored.
-    """
-    # Perform an FFT on the windowed buffer, then calculate PSD
-    spectrum = np.fft.fft(frame_set * win_coeffs[np.new_axis,:], axis=1)
-    psd = (spectrum * spectrum.conj()).real
-    
-    # Average along time axis and shift into frequency channel ordering
-    return np.fft.fftshift( np.mean(psd, axis=0) )
     
 
 def pfb_fir_frontend(x, win_coeffs, nTaps, nChannels):
@@ -79,6 +55,7 @@ def pfb_filterbank(x, win_coeffs, nTaps, nChannels):
     x_pfb = np.fft.fft(x_fir)
     return np.abs(x_pfb)**2
 
+
 def create_window(appliedWindow, nChannels, nTaps):
     """
     Create a set of window coefficients.
@@ -89,7 +66,8 @@ def create_window(appliedWindow, nChannels, nTaps):
                     cutoff=1.0/nChannels, 
                     window="rectangular")
 
-def buffer_to_psd_pfb(frame_set, win_coeffs, nChannels, nTaps):
+
+def buffer_to_psd_pfb(frame_set, win_coeffs, nChannels, nTaps, daq_status=None):
     """
     Channelise and accumulate IQ samples into a single PSD (spectrum) time 
     sample, using a polyphase filter bank (PFB) for channelisation.
@@ -104,8 +82,52 @@ def buffer_to_psd_pfb(frame_set, win_coeffs, nChannels, nTaps):
             Number of frequency channels to produce.
         nTaps (int):
             Number of taps.
+        daq_status (array_like):
+            Array of integer status flags from the Soapy `readStream` function, 
+            of shape `(time_samples,)`. Negative values imply an error state 
+            and should be excluded.
     """
+    # Calculate spectra using PFB
     spectra = np.array([pfb_filterbank(b, win_coeffs, nTaps, nChannels) 
                         for b in frame_set])
-    return np.fft.fftshift( np.mean(spectra, axis=0) )
+    
+    # Use DAQ status flags to exclude frames with error flags
+    if daq_status is not None:
+        idxs = np.where(daq_status >= 0)
+        return np.fft.fftshift( np.mean(spectra[idxs], axis=0) )
+    else:
+        return np.fft.fftshift( np.mean(spectra, axis=0) )
 
+
+def buffer_to_psd_fft(frame_set, win_coeffs, nChannels, nTaps=None, daq_status=None):
+    """
+    Channelise and accumulate IQ samples into a single PSD (spectrum) time 
+    sample, using a windowed FFT for channelisation.
+    
+    Parameters:
+        frame_set (array_like):
+            Complex array of IQ samples from the ADC, of shape 
+            `(time_samples, freq_samples)`.
+        win_coeffs (array_like):
+            Window coeffcients generated using `create_window()`.
+        nChannels (int):
+            Number of frequency channels to produce.
+        nTaps (int):
+            Number of taps. This parameter is ignored.
+        daq_status (array_like):
+            Array of integer status flags from the Soapy `readStream` function, 
+            of shape `(time_samples,)`. Negative values imply an error state 
+            and should be excluded.
+    """
+    # Perform an FFT on the windowed buffer, then calculate PSD
+    spectrum = np.fft.fft(frame_set * win_coeffs[np.new_axis,:], axis=1)
+    psd = (spectrum * spectrum.conj()).real
+    
+    # Use DAQ status flags to exclude frames with error flags
+    if daq_status is not None:
+        idxs = np.where(daq_status >= 0)
+        
+        # Average along time axis and shift into frequency channel ordering
+        return np.fft.fftshift( np.mean(psd[idxs], axis=0) )
+    else:
+        return np.fft.fftshift( np.mean(psd, axis=0) )
