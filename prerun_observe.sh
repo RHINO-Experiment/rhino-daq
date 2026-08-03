@@ -24,5 +24,4 @@ echo "All obs programs completed."
 
 python3 src/process_cache.py --yaml $yaml_path --prerun
 
-echo "Pre Run Block Complete"
-done
+echo "||Pre Run Block Complete||"
