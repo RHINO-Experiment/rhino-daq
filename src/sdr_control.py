@@ -220,10 +220,10 @@ def measure_spectra(sampleIntegrationTime,
             buff[:] = 0. # zero the buffer just in case
         
         # Convert streamed data to a single spectrum (i.e. for one time sample)
-        spectra = spectrometer_func(frame_set=frame_set, 
-                                    win_coeffs=win_coeffs, 
-                                    nChannels=nChannels, 
-                                    nTaps=nTaps, 
+        spectra = spectrometer_func(frame_set=frame_set,
+                                    win_coeffs=win_coeffs,
+                                    nChannels=nChannels,
+                                    nTaps=nTaps,
                                     daq_status=daq_status)
         waterfall_spectra.append(spectra)
         times.append(time.time())
