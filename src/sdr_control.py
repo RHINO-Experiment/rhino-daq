@@ -114,7 +114,7 @@ def measure_spectra(sampleIntegrationTime,
     """
     # Set up channelisation mode
     if spectrometerMode == 'fft':
-        # Number of frames for each fft
+        # Number of frames for each time sample
         n_frames = int(sampleIntegrationTime * bandwidth / nChannels)
         
         # Set spectrometer function and sampling parameters
@@ -132,8 +132,6 @@ def measure_spectra(sampleIntegrationTime,
         n_frames = int(sampleIntegrationTime * bandwidth / (nChannels * nTaps))
     
     # Set-up SDR sampling parameters
-    if verbose:
-        print('n_frames', n_frames)
     rx_chan = 0 # only 1 channel on RSP1A
     sdr = SoapySDR.Device(dict(driver=sdrDriver, label=sdrLabel))
     sdr.setSampleRate(SOAPY_SDR_RX, rx_chan, bandwidth)
@@ -177,32 +175,43 @@ def measure_spectra(sampleIntegrationTime,
     status = sdr.activateStream(rxStream) # start streaming
     if verbose:
         # Output hardware info, stream data stats, and gain info
-        print("  Hardware info:   ", sdr.getHardwareInfo())
-        print("  Stream MTU:      ", sdr.getStreamMTU(rxStream))
-        print("  Sample pts/frame:", n_spec_points)
-        print("  Activate status: ", status)
-        print("  Sample rate:      %6.4f MSPS" \
+        print("  Hardware info:     ", sdr.getHardwareInfo())
+        print("  Stream MTU:        ", sdr.getStreamMTU(rxStream))
+        print("  Frames per sample: ", n_frames)
+        print("  Sample pts/frame:  ", n_spec_points)
+        print("  Activate status:   ", status)
+        print("  Sample rate:        %6.4f MSPS" \
                 % (sdr.getSampleRate(SOAPY_SDR_RX, rx_chan) / 1e6))
-        print("  Frequency:        %6.4f MHz" \
+        print("  Frequency:          %6.4f MHz" \
                 % (sdr.getFrequency(SOAPY_SDR_RX, rx_chan) / 1e6))
-        print("  Bandwidth:        %6.4f MHz" \
+        print("  Bandwidth:          %6.4f MHz" \
                 % (sdr.getBandwidth(SOAPY_SDR_RX, rx_chan) / 1e6))
-        print("  Current gain:    ", sdr.getGain(SOAPY_SDR_RX, rx_chan))
-        print("  RF gain idx:     ", sdr.readSetting("rfgain_sel"))
-        print("  Gain mode (AGC): ", sdr.getGainMode(SOAPY_SDR_RX, rx_chan))
+        print("  Current gain:      ", sdr.getGain(SOAPY_SDR_RX, rx_chan))
+        print("  RF gain idx:       ", sdr.readSetting("rfgain_sel"))
+        print("  Gain mode (AGC):   ", sdr.getGainMode(SOAPY_SDR_RX, rx_chan))
         print("")
     
     sdr.deactivateStream(rxStream) # stop streaming after test
     
-    # Check that requested data frame size fits within the MTU (max. transmission unit)
-    if sdr.getStreamMTU(rxStream) < n_spec_points:
-        raise NotImplementedError("The SoapySDR MTU is smaller than the requested spectrum length, n_spec_points. Code to stitch together multiple packets has not yet been implemented.")
+    # Get the MTU (max. transmission unit)
+    sdr_mtu = sdr.getStreamMTU(rxStream)
     
     # Set total observing time
     t_f = time.time() + runLength
     
     # Prepare data arrays/lists (complex64 == CF32 in Soapy driver)
-    buff = np.zeros((n_spec_points,), np.complex64) # buffer for each 
+    # How many reads are needed to populate a full time sample
+    reads_per_sample = int(np.ceil(n_frames * n_spec_points / sdr_mtu))
+    
+    # Buffers for single read, full set of reads for time sample, and status flags
+    single_buffer = np.zeros((sdr_mtu,), dtype=np.complex64) # buffer for single read 
+    sample_buffer = np.zeros((reads_per_sample, sdr_mtu), dtype=np.complex64) # full frame
+    daq_status = np.zeros(reads_per_sample, dtype=int)
+    
+    # Reshaped array containing a full set of frames for the time sample
+    frame_set = np.zeros((n_frames, n_spec_points), dtype=np.complex64) 
+    
+    # Lists for storing outputs
     waterfall_spectra = []
     times = []
     adc_stats = []
@@ -222,18 +231,21 @@ def measure_spectra(sampleIntegrationTime,
         # Current time
         t = time.time()
         
-        # Allocate memory for set of frames for one time sample
-        frame_set = np.zeros((n_frames, n_spec_points), dtype=np.complex64)
-        daq_status = np.zeros(n_frames, dtype=int)
-        
         # Loop over individual samples pulled from the ADC 
         # (minimise operations within this inner loop to maintain performance)
-        for i in range(n_frames):
+        for i in range(reads_per_sample):
             # Read set of samples for a single spectrum and store status 
-            sr = sdr.readStream(rxStream, [buff,], len(buff), timeoutUs=int(100e3))
-            daq_status[i] = int(sr.ret)
-            frame_set[i] = buff
-            buff[:] = 0. # zero the buffer just in case
+            result = sdr.readStream(rxStream, 
+                                    [single_buffer,], 
+                                    len(single_buffer), 
+                                    timeoutUs=int(100e3))
+            daq_status[i] = int(result.ret)
+            sample_buffer[i] = single_buffer[:]
+            single_buffer[:] = 0. # zero the buffer just in case
+        
+        # Reshape sample_buffer (nreads, sdr_mtu) into (n_frames, n_spec_points)
+        n = n_frames * n_spec_points
+        frame_set[:,:] = sample_buffer.flatten()[:n].reshape((n_frames, n_spec_points))
         
         # Convert streamed data to a single spectrum (i.e. for one time sample)
         spectra = spectrometer_func(frame_set=frame_set, 
@@ -249,6 +261,10 @@ def measure_spectra(sampleIntegrationTime,
                           frame_set.real.max(),
                           frame_set.imag.min(),
                           frame_set.imag.max()))
+        
+        # Zero the buffer ready for next sample
+        sample_buffer[:,:] = 0.
+        frame_set[:,:] = 0.
         
         if verbose:
             adc_i_min, adc_i_max, adc_q_min, adc_q_max = adc_stats[-1]
