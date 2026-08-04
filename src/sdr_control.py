@@ -361,7 +361,8 @@ def main():
                       spectrometerMode=params['spectrometerMode'],
                       nTaps = params['nTaps'],
                       appliedWindow = params['appliedWindow'],
-                      obsCachePath=params['obsCachePath']
+                      obsCachePath=params['obsCachePath'],
+                      partial_save_block=params['partial_save_block']
                       )
     
     # Save the full set of results to a compressed numpy file
