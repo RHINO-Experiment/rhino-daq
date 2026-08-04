@@ -130,7 +130,7 @@ def buffer_to_psd_fft(frame_set, win_coeffs, nChannels, nTaps=None, daq_status=N
             and should be excluded.
     """
     # Perform an FFT on the windowed buffer, then calculate PSD
-    spectrum = np.fft.fft(frame_set * win_coeffs[np.new_axis,:], axis=1)
+    spectrum = np.fft.fft(frame_set * win_coeffs[np.newaxis,:], axis=1)
     psd = (spectrum * spectrum.conj()).real
     
     # Use DAQ status flags to exclude frames with error flags
