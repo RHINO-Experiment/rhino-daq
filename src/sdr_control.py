@@ -205,7 +205,7 @@ def measure_spectra(sampleIntegrationTime,
     
     # Buffers for single read, full set of reads for time sample, and status flags
     single_buffer = np.zeros((sdr_mtu,), dtype=np.complex64) # buffer for single read 
-    sample_buffer = np.zeros((reads_per_sample, sdr_mtu), dtype=np.complex64) # full frame
+    sample_buffer = np.zeros((reads_per_sample * sdr_mtu), dtype=np.complex64) # full frame
     daq_status = np.zeros(reads_per_sample, dtype=int)
     
     # Reshaped array containing a full set of frames for the time sample
@@ -217,7 +217,9 @@ def measure_spectra(sampleIntegrationTime,
     adc_stats = []
     
     # Prepare for streaming the data (assumes the previous gain values are OK)
-    sdr.activateStream(rxStream)
+    status = sdr.activateStream(rxStream)
+    if verbose:
+        print("  Activate status:   ", status)
     
     # Loop for the full duration of the observation
     t = time.time()
@@ -233,14 +235,18 @@ def measure_spectra(sampleIntegrationTime,
         
         # Loop over individual samples pulled from the ADC 
         # (minimise operations within this inner loop to maintain performance)
+        last_idx = 0 # last index to receive data 
         for i in range(reads_per_sample):
             # Read set of samples for a single spectrum and store status 
             result = sdr.readStream(rxStream, 
                                     [single_buffer,], 
                                     len(single_buffer), 
                                     timeoutUs=int(100e3))
-            daq_status[i] = int(result.ret)
-            sample_buffer[i] = single_buffer[:]
+            npts = int(result.ret) # number of points returned
+            daq_status[i] = npts
+            if npts > 0:
+                sample_buffer[last_idx:last_idx+npts] = single_buffer[:npts]
+                last_idx += npts
             single_buffer[:] = 0. # zero the buffer just in case
         
         # Reshape sample_buffer (nreads, sdr_mtu) into (n_frames, n_spec_points)
@@ -252,7 +258,7 @@ def measure_spectra(sampleIntegrationTime,
                                     win_coeffs=win_coeffs, 
                                     nChannels=nChannels, 
                                     nTaps=nTaps, 
-                                    daq_status=daq_status)
+                                    daq_status=None)
         waterfall_spectra.append(spectra)
         times.append(time.time())
         
@@ -263,8 +269,9 @@ def measure_spectra(sampleIntegrationTime,
                           frame_set.imag.max()))
         
         # Zero the buffer ready for next sample
-        sample_buffer[:,:] = 0.
+        sample_buffer[:] = 0.
         frame_set[:,:] = 0.
+        daq_status[:] = 0
         
         if verbose:
             adc_i_min, adc_i_max, adc_q_min, adc_q_max = adc_stats[-1]
