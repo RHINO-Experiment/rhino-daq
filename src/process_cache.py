@@ -124,24 +124,26 @@ def main():
         save_dict_to_group(config_group, obs_config)
 
         if obs_config['sdr']['active']: # set up sdr group
-            sdr_waterfall = np.load(f'{cached_path}/sdr_waterfall.npy')
-            sdr_freqs = np.load(f'{cached_path}/sdr_freqs.npy')
-            sdr_times = np.load(f'{cached_path}/sdr_times.npy')
-            max_i_adc = np.load(f'{cached_path}/max_i_adc.npy')
-            max_q_adc = np.load(f'{cached_path}/max_q_adc.npy')
-
-            sdr_group.create_dataset('sdr_waterfall', data=sdr_waterfall, dtype=sdr_waterfall.dtype)
-            sdr_group.create_dataset('sdr_freqs', data=sdr_freqs, dtype=sdr_freqs.dtype)
-            sdr_group.create_dataset('sdr_times', data=sdr_times, dtype=sdr_times.dtype)
-            sdr_group.create_dataset('max_i_adc', data=max_i_adc,
-                                     dtype=max_i_adc.dtype)
-            sdr_group.create_dataset('max_q_adc',data=max_q_adc,
-                                     dtype=max_q_adc.dtype)
-            pass
+            # Load in .npz file
+            sdr_npz = np.load(f'{cached_path}/sdr_data.npz')
+            sdr_group.create_dataset('sdr_waterfall',
+                                     data=sdr_npz['waterfall'],
+                                     dtype=sdr_npz['waterfall'].dtype)
+            sdr_group.create_dataset('sdr_freqs',
+                                     data=sdr_npz['freqs'],
+                                     dtype=sdr_npz['freqs'].dtype)
+            sdr_group.create_dataset('sdr_times',
+                                     data=sdr_npz['times'],
+                                     dtype=sdr_npz['times'].dtype)
+            sdr_group.create_dataset('adc_stats',
+                                     data=sdr_npz['sdr_stats'],
+                                     dtype=sdr_npz['sdr_stats'].dtype)
         else: # else create empty data sets
             sdr_group.create_dataset('sdr_waterfall', dtype="f")
             sdr_group.create_dataset('sdr_freqs', dtype="f")
             sdr_group.create_dataset('sdr_times', dtype="f")
+            sdr_group.create_dataset('adc_stats', dype="f")
+
         
         if obs_config['auxSdr']['active']:
             aux_sdr_waterfall = np.load(f'{cached_path}/aux_sdr_waterfall.npy')
@@ -165,14 +167,13 @@ def main():
             aux_sdr_group.create_dataset('aux_sdr_times', dtype="f")
         
         if obs_config['arduino']['temperatureMonitoring']['active']:
-            temperatures = np.load(f'{cached_path}/temperature_array.npy')
-            temperature_times = np.load(f'{cached_path}/temperature_times.npy')
+            temperature_npz = np.load(f'{cached_path}/temperature_data.npz')
             temperature_group.create_dataset('temperatures',
-                                             data=temperatures,
-                                             dtype=temperatures.dtype)
+                                             data=temperature_npz['temperatures'],
+                                             dtype=temperature_npz['temperatures'].dtype)
             temperature_group.create_dataset('temperature_times',
-                                             data=temperature_times,
-                                             dtype=temperature_times.dtype)
+                                             data=temperature_npz['temperature_times'],
+                                             dtype=temperature_npz['temperature_times'].dtype)
         else:
             temperature_group.create_dataset('temperatures',
                                              dtype='f')
@@ -180,14 +181,13 @@ def main():
                                              dtype='f')
         
         if obs_config['arduino']['switches']['active']:
-            swtich_states = np.load(f'{cached_path}/switch_states.npy')
-            switch_times = np.load(f'{cached_path}/switch_times.npy')
+            switch_npz = np.load(f'{cached_path}/switch_data.npz')
             switching_group.create_dataset('switch_states',
-                                           data=swtich_states,
-                                           dtype=swtich_states.dtype)
+                                           data=switch_npz['switch_states'],
+                                           dtype=switch_npz['switch_states'].dtype)
             switching_group.create_dataset('switch_times',
-                                           data=switch_times,
-                                           dtype=switch_times.dtype)
+                                           data=switch_npz['switch_times'],
+                                           dtype=switch_npz['switch_times'].dtype)
         else:
             switching_group.create_dataset('switch_states',
                                            dtype='f')
@@ -199,7 +199,6 @@ def main():
 
     # update the update and mock status back to False
     np.save(f'{cached_path}/new_data_bool.npy', False)
-    np.save(f'{cached_path}/mock_data_bool.npy', False)
 
     print('Data Processed into hdf5.')
     pass

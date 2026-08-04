@@ -259,6 +259,7 @@ def measure_spectra(sampleIntegrationTime,
                                     nChannels=nChannels, 
                                     nTaps=nTaps, 
                                     daq_status=None)
+
         waterfall_spectra.append(spectra)
         times.append(time.time())
         
