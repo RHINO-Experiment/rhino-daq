@@ -17,6 +17,14 @@ AVAILABLE_SDR_FLAGS = ['biasT_ctrl',
                        'iqcorr_ctrl'
                        ]
 
+def time_format(t):
+    """
+    Format a time in seconds into a duration in h/m/s.
+    """
+    h = int(t // 3600)
+    m = int((t - h*3600) // 60)
+    s = int(t - h*3600 - m*60)
+    return f"{h}h {m:02d}m {s:02d}s"
 
 def measure_spectra(sampleIntegrationTime,
                     runLength,
@@ -169,19 +177,26 @@ def measure_spectra(sampleIntegrationTime,
     status = sdr.activateStream(rxStream) # start streaming
     if verbose:
         # Output hardware info, stream data stats, and gain info
-        print("  Hardware info", sdr.getHardwareInfo())
-        print("  Stream MTU:", sdr.getStreamMTU(rxStream))
-        print("  Activate status:", status)
-        print("  Current gain:", sdr.getGain(SOAPY_SDR_RX, rx_chan))
-        print("  RF gain idx:", sdr.readSetting("rfgain_sel"))
-        print("  Current Gain Mode, AGC:", sdr.getGainMode(SOAPY_SDR_RX, rx_chan))
+        print("  Hardware info:   ", sdr.getHardwareInfo())
+        print("  Stream MTU:      ", sdr.getStreamMTU(rxStream))
+        print("  Sample pts/frame:", n_spec_points)
+        print("  Activate status: ", status)
+        print("  Sample rate:      %6.4f MSPS" \
+                % (sdr.getSampleRate(SOAPY_SDR_RX, rx_chan) / 1e6))
+        print("  Frequency:        %6.4f MHz" \
+                % (sdr.getFrequency(SOAPY_SDR_RX, rx_chan) / 1e6))
+        print("  Bandwidth:        %6.4f MHz" \
+                % (sdr.getBandwidth(SOAPY_SDR_RX, rx_chan) / 1e6))
+        print("  Current gain:    ", sdr.getGain(SOAPY_SDR_RX, rx_chan))
+        print("  RF gain idx:     ", sdr.readSetting("rfgain_sel"))
+        print("  Gain mode (AGC): ", sdr.getGainMode(SOAPY_SDR_RX, rx_chan))
         print("")
     
     sdr.deactivateStream(rxStream) # stop streaming after test
     
     # Check that requested data frame size fits within the MTU (max. transmission unit)
     if sdr.getStreamMTU(rxStream) < n_spec_points:
-        raise NotImplementedError("The SoapySDR MTU is smaller than the requested spectrum length, n_spec_points. Code to stitch togethe`r multiple packets has not yet been implemented.")
+        raise NotImplementedError("The SoapySDR MTU is smaller than the requested spectrum length, n_spec_points. Code to stitch together multiple packets has not yet been implemented.")
     
     # Set total observing time
     t_f = time.time() + runLength
@@ -196,6 +211,7 @@ def measure_spectra(sampleIntegrationTime,
     sdr.activateStream(rxStream)
     
     # Loop for the full duration of the observation
+    t = time.time()
     tidx = -1
     tidx_last_save = 0 # time sample index when the data were last saved
     save_block = 0
@@ -236,10 +252,10 @@ def measure_spectra(sampleIntegrationTime,
         
         if verbose:
             adc_i_min, adc_i_max, adc_q_min, adc_q_max = adc_stats[-1]
-            print(t)
-            print(f"ADC range (I): {adc_i_min} -- {adc_i_max}")
-            print(f"ADC range (Q): {adc_q_min} -- {adc_q_max}")
-            print(f'Remaining: {t_f - t} s')
+            print(f"\nTime sample {tidx}")
+            print(f"\tADC range (I): {adc_i_min:.5f} -- {adc_i_max:.5f}")
+            print(f"\tADC range (Q): {adc_q_min:.5f} -- {adc_q_max:.5f}")
+            print("\tRemaining: %s" % time_format(t_f - t))
         
         # Do a partial save of a block of time samples if needed
         if partial_save_block is not None:
@@ -317,9 +333,11 @@ def main():
                       sdrRFGR=params['sdrRFGR'],
                       sdrIFGR=params['sdrIFGR'],
                       sdrLabel=params['sdrLabel'],
+                      sdrFlags=params['sdrFlags'],
                       spectrometerMode=params['spectrometerMode'],
                       nTaps = params['nTaps'],
-                      appliedWindow = params['appliedWindow']
+                      appliedWindow = params['appliedWindow'],
+                      obsCachePath=params['obsCachePath']
                       )
     
     # Save the full set of results to a compressed numpy file

@@ -28,6 +28,7 @@ def return_sdr_params(yaml_path):
     sdrGain = sdr_config['sdrGain']
     sdrRFGR = sdr_config['sdrRFGR']
     sdrIFGR = sdr_config['sdrIFGR']
+    sdrFlags = sdr_config['sdrFlags']
     delay = sdr_config['delay']
     if not isinstance(sdrGain, int) or not isinstance(sdrGain, float):
         sdrGain = None
@@ -54,6 +55,7 @@ def return_sdr_params(yaml_path):
             'delay': delay,
             'runLength': runLength,
             'obsCachePath': obsCachePath,
+            'sdrFlags': sdrFlags,
             'active': active,
             'nTaps': nTaps,
             'appliedWindow': appliedWindow
