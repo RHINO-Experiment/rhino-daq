@@ -10,6 +10,21 @@ import spectrum
 import prerun_config
 import config
 
+AVAILABLE_SDR_FLAGS = ['biasT_ctrl', 
+                       'rfnotch_ctrl', 
+                       'dabnotch_ctrl', 
+                       'hdr_ctrl', 
+                       'iqcorr_ctrl'
+                       ]
+
+def time_format(t):
+    """
+    Format a time in seconds into a duration in h/m/s.
+    """
+    h = int(t // 3600)
+    m = int((t - h*3600) // 60)
+    s = int(t - h*3600 - m*60)
+    return f"{h}h {m:02d}m {s:02d}s"
 
 def measure_spectra(sampleIntegrationTime,
                     runLength,
@@ -25,6 +40,9 @@ def measure_spectra(sampleIntegrationTime,
                     spectrometerMode,
                     nTaps,
                     appliedWindow,
+                    sdrFlags='rfnotch_ctrl,dabnotch_ctrl',
+                    obsCachePath=None,
+                    partial_save_block=None,
                     verbose=True):
     """
     Acquire IQ samples from SoapySDR and transform to chanelised and time-
@@ -67,8 +85,21 @@ def measure_spectra(sampleIntegrationTime,
         appliedWindow (str):
             Name of the window function to apply when channelising. 
             See `spectrum.window_dict` for options.
+        sdrFlags (list of str):
+            SDR settings to enable, via the Soapy interface. This should be 
+            passed as a string of comma-separated values. Settings that are 
+            present in the string are enabled (set to True). Others are 
+            explicitly set to False. For the SDRPlay driver, the following 
+            settings are available (case sensitive!):
+            `biasT_ctrl, rfnotch_ctrl, dabnotch_ctrl, hdr_ctrl, iqcorr_ctrl`.
+        obsCachePath (str):
+            Directory to store the data files in if partial saves are enabled. 
+            Will use the filename `sdr_data_nnnnnnnn.npz` within this directory.
+        partial_save_block (int):
+            Save a partial data file every `partial_save_block` time samples. 
+            If set to None, do not perform partial saves.
         verbose (bool):
-            Whether to print diagonostic messages.
+            Whether to print diagnostic messages.
     
     Returns:
         waterfall_spectra (array_like):
@@ -77,13 +108,13 @@ def measure_spectra(sampleIntegrationTime,
             Timestamps for each time sample, in seconds since the UNIX epoch.
         freqs (array_like):
             Array of frequency channel centre values in MHz.
-        max_i_adc, max_q_adc (array_like):
-            Arrays of maximum ADC values for the I and Q channels, for each 
-            time sample.
+        adc_stats (list of tuple):
+            List of tuples with the ADC statistics for each time sample, in the 
+            order: `(I_min, I_max, Q_min, Q_max)`.
     """
     # Set up channelisation mode
     if spectrometerMode == 'fft':
-        # Number of frames for each fft
+        # Number of frames for each time sample
         n_frames = int(sampleIntegrationTime * bandwidth / nChannels)
         
         # Set spectrometer function and sampling parameters
@@ -97,26 +128,35 @@ def measure_spectra(sampleIntegrationTime,
         
         # Set spectrometer function and sampling parameters
         spectrometer_func = spectrum.buffer_to_psd_pfb
-        n_spec_points = nChannels * nTaps # no. 
-        n_frames = int(sampleIntegrationTime * bandwidth / (nChannels*nTaps))
+        n_spec_points = nChannels * nTaps # no. sample points needed to form spectrum
+        n_frames = int(sampleIntegrationTime * bandwidth / (nChannels * nTaps))
     
     # Set-up SDR sampling parameters
-    if verbose:
-        print('n_frames', n_frames)
     rx_chan = 0 # only 1 channel on RSP1A
     sdr = SoapySDR.Device(dict(driver=sdrDriver, label=sdrLabel))
     sdr.setSampleRate(SOAPY_SDR_RX, rx_chan, bandwidth)
     sdr.setFrequency(SOAPY_SDR_RX, rx_chan, centre_frequency)
     sdr.setBandwidth(SOAPY_SDR_RX, rx_chan, int(bandwidth))
     
-    # Set notch filters if available (some may be ignored; depends on SDR)
-    # FIXME: Commented out the first two
-    #sdr.writeSetting("rfnotch_ctrl", "true")
-    #sdr.writeSetting("dabnotch_ctrl", "true")
-    #sdr.writeSetting("biasT_ctrl", "false")
-    sdr.writeSetting(SOAPY_SDR_RX, rx_chan, "rfnotch_ctrl", "true")
-    sdr.writeSetting(SOAPY_SDR_RX, rx_chan, "dabnotch_ctrl", "true")
-    sdr.writeSetting(SOAPY_SDR_RX, rx_chan, "fmmnotch_ctrl", "true")
+    # Calculate frequency channel locations in MHz
+    freqs = np.linspace(-bandwidth/2/1e6 + centre_frequency/1e6, 
+                         bandwidth/2/1e6 + centre_frequency/1e6,
+                         nChannels)
+    
+    # Set settings, e.g. notch filters (some may be ignored; depends on SDR)
+    sdr_flags = sdrFlags.strip().replace(" ", "").split(",")
+    for flag in sdr_flags:
+        if flag not in AVAILABLE_SDR_FLAGS:
+            raise ValueError(f"SDR flag '{flag}' not found in AVAILABLE_SDR_FLAGS")
+    for flag in AVAILABLE_SDR_FLAGS:
+        if flag in sdr_flags:
+            sdr.writeSetting(SOAPY_SDR_RX, rx_chan, flag, "true")
+            if verbose:
+                print(f"  SDR setting: {flag}=true")
+        else:
+            sdr.writeSetting(SOAPY_SDR_RX, rx_chan, flag, "false")
+            if verbose:
+                print(f"  SDR setting: {flag}=false")
     
     # Set gain mode and settings manually, rather than using AGC
     sdr.setGainMode(SOAPY_SDR_RX, rx_chan, False) # turn OFF AGC
@@ -135,87 +175,141 @@ def measure_spectra(sampleIntegrationTime,
     status = sdr.activateStream(rxStream) # start streaming
     if verbose:
         # Output hardware info, stream data stats, and gain info
-        print("  Hardware info", sdr.getHardwareInfo())
-        print("  Stream MTU:", sdr.getStreamMTU(rxStream))
-        print("  Activate status:", status)
-        print("  Current gain:", sdr.getGain(SOAPY_SDR_RX, rx_chan))
-        print("  RF gain idx:", sdr.readSetting("rfgain_sel"))
-        print("  Current Gain Mode, AGC:", sdr.getGainMode(SOAPY_SDR_RX, rx_chan))
+        print("  Hardware info:     ", sdr.getHardwareInfo())
+        print("  Stream MTU:        ", sdr.getStreamMTU(rxStream))
+        print("  Frames per sample: ", n_frames)
+        print("  Sample pts/frame:  ", n_spec_points)
+        print("  Activate status:   ", status)
+        print("  Sample rate:        %6.4f MSPS" \
+                % (sdr.getSampleRate(SOAPY_SDR_RX, rx_chan) / 1e6))
+        print("  Frequency:          %6.4f MHz" \
+                % (sdr.getFrequency(SOAPY_SDR_RX, rx_chan) / 1e6))
+        print("  Bandwidth:          %6.4f MHz" \
+                % (sdr.getBandwidth(SOAPY_SDR_RX, rx_chan) / 1e6))
+        print("  Current gain:      ", sdr.getGain(SOAPY_SDR_RX, rx_chan))
+        print("  RF gain idx:       ", sdr.readSetting("rfgain_sel"))
+        print("  Gain mode (AGC):   ", sdr.getGainMode(SOAPY_SDR_RX, rx_chan))
         print("")
     
     sdr.deactivateStream(rxStream) # stop streaming after test
     
-    # Check that requested data frame size fits within the MTU (max. transmission unit)
-    if sdr.getStreamMTU(rxStream) < n_spec_points:
-        raise NotImplementedError("The SoapySDR MTU is smaller than the requested spectrum length, n_spec_points. Code to stitch togethe`r multiple packets has not yet been implemented.")
+    # Get the MTU (max. transmission unit)
+    sdr_mtu = sdr.getStreamMTU(rxStream)
     
     # Set total observing time
     t_f = time.time() + runLength
     
     # Prepare data arrays/lists (complex64 == CF32 in Soapy driver)
-    buff = np.zeros((n_spec_points,), np.complex64) # buffer for each 
+    # How many reads are needed to populate a full time sample
+    reads_per_sample = int(np.ceil(n_frames * n_spec_points / sdr_mtu))
+    
+    # Buffers for single read, full set of reads for time sample, and status flags
+    single_buffer = np.zeros((sdr_mtu,), dtype=np.complex64) # buffer for single read 
+    sample_buffer = np.zeros((reads_per_sample * sdr_mtu), dtype=np.complex64) # full frame
+    daq_status = np.zeros(reads_per_sample, dtype=int)
+    
+    # Reshaped array containing a full set of frames for the time sample
+    frame_set = np.zeros((n_frames, n_spec_points), dtype=np.complex64) 
+    
+    # Lists for storing outputs
     waterfall_spectra = []
     times = []
-    max_i_adc = []
-    max_q_adc = []
+    adc_stats = []
     
     # Prepare for streaming the data (assumes the previous gain values are OK)
-    sdr.activateStream(rxStream)
+    status = sdr.activateStream(rxStream)
+    if verbose:
+        print("  Activate status:   ", status)
     
     # Loop for the full duration of the observation
+    t = time.time()
+    tidx = -1
+    tidx_last_save = 0 # time sample index when the data were last saved
+    save_block = 0
     while t < t_f:
+        # Update time sample index counter
+        tidx += 1
         
         # Current time
         t = time.time()
         
-        # Allocate memory for set of frames for one time sample
-        frame_set = np.zeros((n_frames, n_spec_points), dtype=np.complex64)
-        daq_status = np.zeros(n_frames, dtype=int)
-        
         # Loop over individual samples pulled from the ADC 
         # (minimise operations within this inner loop to maintain performance)
-        for i in range(n_frames):
+        last_idx = 0 # last index to receive data 
+        for i in range(reads_per_sample):
             # Read set of samples for a single spectrum and store status 
-            sr = sdr.readStream(rxStream, [buff,], len(buff), timeoutUs=int(100e3))
-            daq_status[i] = int(sr.ret)
-            frame_set[i] = buff
-            buff[:] = 0. # zero buffer just in case
+            result = sdr.readStream(rxStream, 
+                                    [single_buffer,], 
+                                    len(single_buffer), 
+                                    timeoutUs=int(100e3))
+            npts = int(result.ret) # number of points returned
+            daq_status[i] = npts
+            if npts > 0:
+                sample_buffer[last_idx:last_idx+npts] = single_buffer[:npts]
+                last_idx += npts
+            single_buffer[:] = 0. # zero the buffer just in case
         
-        # Save output
-        spectra = spectrometer_func(frame_set, 
-                                    win_coeffs, nChannels, nTaps, daq_status)
+        # Reshape sample_buffer (nreads, sdr_mtu) into (n_frames, n_spec_points)
+        n = n_frames * n_spec_points
+        frame_set[:,:] = sample_buffer.flatten()[:n].reshape((n_frames, n_spec_points))
+        
+        # Convert streamed data to a single spectrum (i.e. for one time sample)
+        spectra = spectrometer_func(frame_set=frame_set, 
+                                    win_coeffs=win_coeffs, 
+                                    nChannels=nChannels, 
+                                    nTaps=nTaps, 
+                                    daq_status=None)
+
         waterfall_spectra.append(spectra)
         times.append(time.time())
         
         # Acquire ADC statistics
-        max_adc_i = frame_set.real.max()
-        max_adc_q = frame_set.imag.max()
-        max_i_adc.append(max_adc_i)
-        max_q_adc.append(max_adc_q)
+        adc_stats.append((frame_set.real.min(), 
+                          frame_set.real.max(),
+                          frame_set.imag.min(),
+                          frame_set.imag.max()))
+        
+        # Zero the buffer ready for next sample
+        sample_buffer[:] = 0.
+        frame_set[:,:] = 0.
+        daq_status[:] = 0
         
         if verbose:
-            print(t)
-            print(f"Max ADC I: {max_adc_i}")
-            print(f'Max ADC Q: {max_adc_q}')
-            print(f'Remaining: {t_f - t} s')
+            adc_i_min, adc_i_max, adc_q_min, adc_q_max = adc_stats[-1]
+            print(f"\nTime sample {tidx}")
+            print(f"\tADC range (I): {adc_i_min:.5f} -- {adc_i_max:.5f}")
+            print(f"\tADC range (Q): {adc_q_min:.5f} -- {adc_q_max:.5f}")
+            print("\tRemaining: %s" % time_format(t_f - t))
+        
+        # Do a partial save of a block of time samples if needed
+        if partial_save_block is not None:
+            if tidx > 0 and tidx % partial_save_block == 0:
+                # Save the most recent block to a file
+                partial_file_name = f'{obsCachePath}/sdr_data_{save_block:08d}.npz'
+                np.savez_compressed(
+                        partial_file_name,
+                        waterfall=np.array([waterfall_spectra[ii] 
+                                            for ii in range(tidx_last_save, tidx)]),
+                        times=np.array(times)[tidx_last_save:tidx],
+                        freqs=freqs,
+                        adc_stats=np.array(adc_stats)[tidx_last_save:tidx]
+                        )
+                tidx_last_save = tidx
+                save_block += 1
+                if verbose:
+                    print(f"Saved partial data file {partial_file_name}")
     
     # Stop observation and close stream
     sdr.deactivateStream(rxStream)
     sdr.closeStream(rxStream)
     if verbose:
-        print('SDRPlay stream deactivated')
+        print('SDR data stream deactivated')
     
     # Convert waterfall and metadata into arrays
     waterfall_spectra = np.array(waterfall_spectra)
     times = np.array(times)
-    max_i_adc = np.array(max_i_adc)
-    max_q_adc = np.array(max_q_adc)
     
-    # Calculate frequency channel locations in MHz
-    freqs = np.linspace(-bandwidth/2/1e6 + centre_frequency/1e6, 
-                         bandwidth/2/1e6 + centre_frequency/1e6,
-                         nChannels)
-    return waterfall_spectra, times, freqs, max_i_adc, max_q_adc
+    return waterfall_spectra, times, freqs, np.array(adc_stats)
 
 
 def main():
@@ -250,7 +344,7 @@ def main():
     time.sleep(params['delay'])
     
     # Run the data acquisition
-    waterfall_spectra, times, freqs, max_i_adc, max_q_adc = \
+    waterfall_spectra, times, freqs, adc_stats = \
             measure_spectra(
                       sampleIntegrationTime=params['sampleIntegrationTime'],
                       runLength = runLength,
@@ -263,20 +357,24 @@ def main():
                       sdrRFGR=params['sdrRFGR'],
                       sdrIFGR=params['sdrIFGR'],
                       sdrLabel=params['sdrLabel'],
+                      sdrFlags=params['sdrFlags'],
                       spectrometerMode=params['spectrometerMode'],
                       nTaps = params['nTaps'],
-                      appliedWindow = params['appliedWindow'])
+                      appliedWindow = params['appliedWindow'],
+                      obsCachePath=params['obsCachePath'],
+                      partial_save_block=params['partial_save_block']
+                      )
     
-    # Save the results to files
+    # Save the full set of results to a compressed numpy file
     obsCachePath = params['obsCachePath']
-    np.save(f'{obsCachePath}/sdr_waterfall.npy', arr=waterfall_spectra)
-    np.save(f'{obsCachePath}/sdr_times.npy', arr=times)
-    np.save(f'{obsCachePath}/sdr_freqs.npy', arr=freqs)
-    np.save(f'{obsCachePath}/max_i_adc.npy', arr=max_i_adc)
-    np.save(f'{obsCachePath}/max_q_adc.npy', arr=max_q_adc)
     np.save(f'{obsCachePath}/new_data_bool.npy', True)
+    np.savez_compressed(f'{obsCachePath}/sdr_data.npz',
+                        waterfall=waterfall_spectra,
+                        times=times,
+                        freqs=freqs,
+                        adc_stats=adc_stats)
     
-    print('SDR Data Cached')
+    print('SDR data stored')
 
 if __name__ == "__main__":
     main()

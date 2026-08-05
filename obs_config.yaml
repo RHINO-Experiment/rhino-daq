@@ -2,7 +2,7 @@
 
 
 observationParams:
-  runLength: 21600
+  runLength: 600
   preRunLength: 600
   obsCachePath: /media/usb0/rhino-data/obs_cache
   dataDirectory: /media/usb0/rhino-data/data
@@ -18,11 +18,12 @@ sdr:
   sdrDriver: sdrplay
   sdrLabel: SDRplay Dev0 RSPdx 2302031848
   sdrId: 2302031848
-  sampleIntegrationTime: 3
+  sampleIntegrationTime: 1
   delay: 2
   sdrGain: None
   sdrRFGR: 8
   sdrIFGR: 39
+  sdrFlags: rfnotch_ctrl,iqcorr_ctrl
   spectrometerMode: pfb
   pfbParams:
     nTaps: 4
