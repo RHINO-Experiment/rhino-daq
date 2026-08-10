@@ -136,8 +136,8 @@ def main():
                                      data=sdr_npz['times'],
                                      dtype=sdr_npz['times'].dtype)
             sdr_group.create_dataset('adc_stats',
-                                     data=sdr_npz['sdr_stats'],
-                                     dtype=sdr_npz['sdr_stats'].dtype)
+                                     data=sdr_npz['adc_stats'],
+                                     dtype=sdr_npz['adc_stats'].dtype)
         else: # else create empty data sets
             sdr_group.create_dataset('sdr_waterfall', dtype="f")
             sdr_group.create_dataset('sdr_freqs', dtype="f")
