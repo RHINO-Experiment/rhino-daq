@@ -54,7 +54,7 @@ def main():
                                                                       temperature_cadence=params['temp_cadence'],
                                                                       dickeSwitchCycleLength=params['DickeSwitchCycleLength'],
                                                                       switchSourceTargets=params['switchSourceTargets'],
-                                                                      dickeSwitchCycle=params['DickeSwitchCycleLength'])
+                                                                      dickeSwitchCycle=params['dickeSwitchCycle'])
 
         np.savez_compressed(f'{obsCachePath}/temperature_data.npz',
                             temperatures=temperatures,

@@ -362,7 +362,7 @@ def main():
                       nTaps = params['nTaps'],
                       appliedWindow = params['appliedWindow'],
                       obsCachePath=params['obsCachePath'],
-                      partial_save_block=params['partial_save_block']
+                      partial_save_block=params['partialSaveBlock'],
                       )
     
     # Save the full set of results to a compressed numpy file

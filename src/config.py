@@ -30,7 +30,6 @@ def return_sdr_params(yaml_path):
     sdrIFGR = sdr_config['sdrIFGR']
     sdrFlags = sdr_config['sdrFlags']
     delay = sdr_config['delay']
-    partial_save_block = sdr_config['partial_save_block']
     partialSaveBlock = sdr_config['partialSaveBlock']
     if not isinstance(sdrGain, int) or not isinstance(sdrGain, float):
         sdrGain = None
@@ -61,7 +60,7 @@ def return_sdr_params(yaml_path):
             'active': active,
             'nTaps': nTaps,
             'appliedWindow': appliedWindow,
-            'partial_save_block': partial_save_block
+            'partialSaveBlock': partialSaveBlock
             }
 
 def return_aux_sdr_params(yaml_path):
