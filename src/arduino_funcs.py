@@ -161,6 +161,7 @@ def general_observing(arduino: Arduino,
     switch_times = []
 
     arduino.turn_on_heater() # turn on heater
+    time.sleep(0.5)
 
     while t < t_end: # loop until end
         for d in dickeSwitchCycle: # loop through the dicke switch cycle
