@@ -55,11 +55,15 @@ arduino:
   active: true
   comPort: /dev/ttyACM0
   baudRate: 9600
-
   temperatureMonitoring:
     active: true
     obsRate: 1
     nProbes: 2
+    temperatureControl:
+      active: true
+      upperLimit: 160
+      lowerLimit: 140
+    
     probeLabels:
     - load_monitoring
     - ambient_monitoring
@@ -73,13 +77,8 @@ arduino:
     switchSourceTargets:
     - antenna
     - antenna
-    - test_src
     - antenna
     - antenna
-    - test_src
-    - antenna
-    - antenna
-    - test_src
     - open
     - short
     - long_open
@@ -93,13 +92,13 @@ arduino:
   switchDictionary:
     noise_diode: t1t1e4
     load: t1t1e1
-    short: t1t1e3
-    open: t1t1e2
-    long_open: t1t1e5
-    long_short: t2t2e5
+    short: t1t1e5
+    open: t1t1e8
+    long_open: t1t1e3
+    long_short: t2t2e3
     heated_load: t1t1e6
     antenna: t1t1e7
-    test_src: t1t1e8
+    test_src: t1t1e2
 
 vna:
   active: false

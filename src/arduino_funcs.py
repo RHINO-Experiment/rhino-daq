@@ -8,13 +8,23 @@ class Arduino:
                  n__temp_sens,
                  com_port,
                  baud_rate,
-                 switch_dictionary):
+                 switch_dictionary,
+                 temperature_control_active = True,
+                 temp_upper_limit = 160,
+                 temp_lower_limit = 140):
         
         self.com_port = com_port
         self.baud_rate = baud_rate
         self.n_sens = n__temp_sens
         self.serial = serial.Serial(com_port, baud_rate)
         self.switch_dict = switch_dictionary
+
+        self.h_off_cmd = 'h_off'
+        self.h_on_cmd = 'h_on'
+        self.temperature_control_active=temperature_control_active
+        self.temp_control_upper_lim = temp_upper_limit
+        self.temp_control_lower_lim = temp_lower_limit
+        self.heater_status = False # false for off, true for on
         self.open()
         pass
 
@@ -74,6 +84,46 @@ class Arduino:
         #self.close()
         pass
 
+    def turn_on_heater(self):
+        self.open()
+        time.sleep(0.5)
+        self.serial.write(self.h_on_cmd.encode())
+        print('------------------------------')
+        print('Heater On')
+        print('------------------------------')
+        self.serial.write(self.h_on_cmd.encode())
+        time.sleep(0.5)
+        self.heater_status = True
+    def turn_off_heater(self):
+        self.open()
+        time.sleep(0.5)
+        self.serial.write(self.h_off_cmd.encode())
+        print('------------------------------')
+        print('Heater On')
+        print('------------------------------')
+        self.serial.write(self.h_off_cmd.encode())
+        time.sleep(0.5)
+        self.heater_status = False
+    
+    def temperature_control(self,
+                            temperatures):
+        # temperatures is a [t1, t2] list
+        # turn off heater if threshold is met
+        if not self.temperature_control_active:
+            return
+
+        if any(t > self.temp_control_upper_lim for t in temperatures) and self.heater_status:
+            self.turn_off_heater()
+
+        # turn on heater if temps go below limit and 
+        # it is not already on
+        if any(t < self.temp_control_lower_lim for t in temperatures) and not self.heater_status:
+            if any(t == -273 for t in temperatures):
+                return
+            else:
+                self.turn_on_heater()
+        
+
 
 def general_observing(arduino: Arduino,
                       runLength:float,
@@ -110,6 +160,8 @@ def general_observing(arduino: Arduino,
     switch_states = []
     switch_times = []
 
+    arduino.turn_on_heater() # turn on heater
+
     while t < t_end: # loop until end
         for d in dickeSwitchCycle: # loop through the dicke switch cycle
             if t > t_end:
@@ -129,6 +181,7 @@ def general_observing(arduino: Arduino,
                     temp = arduino.read_temp()
                     temperatures.append(temp)
                     temperature_times.append(t)
+                    arduino.temperature_control(temp) # control temperatures
                     time.sleep(temperature_cadence) # sleep to allow for arduino to give new line
                     pass
                 pass
