@@ -19,8 +19,8 @@ class Arduino:
         self.serial = serial.Serial(com_port, baud_rate)
         self.switch_dict = switch_dictionary
 
-        self.h_off_cmd = "h_off"
-        self.h_on_cmd = "h_on"
+        self.h_off_cmd = "hoff"
+        self.h_on_cmd = "hon"
         self.temperature_control_active=temperature_control_active
         self.temp_control_upper_lim = temp_upper_limit
         self.temp_control_lower_lim = temp_lower_limit
@@ -87,21 +87,21 @@ class Arduino:
     def turn_on_heater(self):
         self.open()
         time.sleep(0.5)
-        self.serial.write("h_on".encode())
+        self.serial.write("hon".encode())
         print('------------------------------')
         print('Heater ON')
         print('------------------------------')
-        self.serial.write("h_on".encode())
+        self.serial.write("hon".encode())
         time.sleep(0.5)
         self.heater_status = True
     def turn_off_heater(self):
         self.open()
         time.sleep(0.5)
-        self.serial.write("h_off".encode())
+        self.serial.write("hoff".encode())
         print('------------------------------')
         print('Heater OFF')
         print('------------------------------')
-        self.serial.write("h_off".encode())
+        self.serial.write("hoff".encode())
         time.sleep(0.5)
         self.heater_status = False
     
