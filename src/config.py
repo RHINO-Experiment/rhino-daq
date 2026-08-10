@@ -31,6 +31,7 @@ def return_sdr_params(yaml_path):
     sdrFlags = sdr_config['sdrFlags']
     delay = sdr_config['delay']
     partial_save_block = sdr_config['partial_save_block']
+    partialSaveBlock = sdr_config['partialSaveBlock']
     if not isinstance(sdrGain, int) or not isinstance(sdrGain, float):
         sdrGain = None
 
@@ -154,6 +155,12 @@ def return_arduino_params(yaml_path):
     dickeSwitchCycle = obs_config['arduino']['switches']['dickeSwitchCycle']
     DickeSwitchCycleLength = obs_config['arduino']['switches']['DickeSwitchCycleLength']
 
+    # temperature control
+    temperatureControlStatus = obs_config['arduino']['temperatureMonitoring']['active']
+    temperatureControlLowerLimit = obs_config['arduino']['temperatureMonitoring']['lowerLimit']
+    temperatureControlUpperLimit = obs_config['arduino']['temperatureMonitoring']['upperLimit']
+
+
     return {'baudRate': baud_rate,
             'comPort': com_port,
             'switchDictionary': switch_dictionary,
@@ -166,7 +173,10 @@ def return_arduino_params(yaml_path):
             'active': active,
             'switchSourceTargets': switchSourceTargets,
             'dickeSwitchCycle': dickeSwitchCycle,
-            'DickeSwitchCycleLength': DickeSwitchCycleLength}
+            'DickeSwitchCycleLength': DickeSwitchCycleLength,
+            'temperatureControlStatus':temperatureControlStatus,
+            'temperatureControlLowerLimit':temperatureControlLowerLimit,
+            'temperatureControlUpperLimit':temperatureControlUpperLimit}
     
 def return_cache_params(yaml_path):
     with open(yaml_path,'r') as f:

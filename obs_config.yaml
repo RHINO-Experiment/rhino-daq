@@ -24,6 +24,7 @@ sdr:
   sdrRFGR: 8
   sdrIFGR: 39
   sdrFlags: rfnotch_ctrl,iqcorr_ctrl
+  partialSaveBlock: None
   spectrometerMode: pfb
   pfbParams:
     nTaps: 4
@@ -44,6 +45,7 @@ auxSdr:
   sdrGain: None
   sdrRFGR: 9
   sdrIFGR: 42
+  partialSaveBlock: None
   spectrometerMode: pfb
   pfbParams:
     nTaps: 4

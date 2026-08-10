@@ -38,15 +38,13 @@ def main():
     temp_monitoring_status = params['temp_monitoring_status']
     switch_status = params['switch_status']
 
-    temp_control_params = temp_monitoring_status['temperatureControl']
-
     arduino_object = arduino_funcs.Arduino(n__temp_sens=params['n_temp_sens'],
                                            com_port=params['comPort'],
                                            baud_rate=params['baudRate'],
                                            switch_dictionary=params['switchDictionary'],
-                                           temperature_control_active=temp_control_params['active'],
-                                           temp_lower_limit=temp_control_params['lowerLimit'],
-                                           temp_upper_limit=temp_control_params['upperLimit'])
+                                           temperature_control_active=params['temperatureControlStatus'],
+                                           temp_lower_limit=params['temperatureControlLowerLimit'],
+                                           temp_upper_limit=params['temperatureControlUpperLimit'])
 
     if temp_monitoring_status and switch_status:
         print('|| arduino_control.py Begining General Observing ||')
