@@ -86,23 +86,25 @@ class Arduino:
 
     def turn_on_heater(self):
         self.open()
-        time.sleep(0.5)
-        self.serial.write("hon\n".encode())
+        time.sleep(2)
+        self.serial.write(b"hon\n")
+        self.serial.flush()
         print('------------------------------')
         print('Heater ON')
         print('------------------------------')
-        self.serial.write("hon\n".encode())
-        time.sleep(0.5)
+        self.serial.write(b"hon\n")
+        self.serial.flush()
         self.heater_status = True
     def turn_off_heater(self):
         self.open()
-        time.sleep(0.5)
-        self.serial.write("hoff\n".encode())
+        time.sleep(2)
+        self.serial.write(b"hoff\n")
+        self.serial.flush()
         print('------------------------------')
         print('Heater OFF')
         print('------------------------------')
-        self.serial.write("hoff\n".encode())
-        time.sleep(0.5)
+        self.serial.write(b"hoff\n")
+        self.serial.flush()
         self.heater_status = False
     
     def temperature_control(self,
@@ -161,7 +163,7 @@ def general_observing(arduino: Arduino,
     switch_times = []
 
     # time.sleep(0.5) # sleep to allow for arduino to give new line
-    # arduino.turn_on_heater() # turn on heater
+    arduino.turn_on_heater() # turn on heater
     # time.sleep(0.5)
 
     while t < t_end: # loop until end
