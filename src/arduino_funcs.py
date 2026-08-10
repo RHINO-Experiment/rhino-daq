@@ -119,7 +119,7 @@ class Arduino:
 
         # turn on heater if temps go below limit and 
         # it is not already on
-        if any(t < self.temp_control_lower_lim for t in temperatures) and not self.heater_status:
+        if max(temperatures) < self.temp_control_lower_lim and not self.heater_status:
             if any(t == -273 for t in temperatures):
                 return
             else:
