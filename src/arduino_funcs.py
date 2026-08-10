@@ -87,21 +87,21 @@ class Arduino:
     def turn_on_heater(self):
         self.open()
         time.sleep(0.5)
-        self.serial.write(self.h_on_cmd.encode())
+        self.serial.write("h_on".encode())
         print('------------------------------')
         print('Heater On')
         print('------------------------------')
-        self.serial.write(self.h_on_cmd.encode())
+        self.serial.write("h_on".encode())
         time.sleep(0.5)
         self.heater_status = True
     def turn_off_heater(self):
         self.open()
         time.sleep(0.5)
-        self.serial.write(self.h_off_cmd.encode())
+        self.serial.write("h_off".encode())
         print('------------------------------')
-        print('Heater On')
+        print('Heater Off')
         print('------------------------------')
-        self.serial.write(self.h_off_cmd.encode())
+        self.serial.write("h_off".encode())
         time.sleep(0.5)
         self.heater_status = False
     
