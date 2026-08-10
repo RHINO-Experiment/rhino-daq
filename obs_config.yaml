@@ -20,7 +20,7 @@ sdr:
   sdrId: 2302031848
   sampleIntegrationTime: 1
   delay: 2
-  sdrGain: None
+  sdrGain:
   sdrRFGR: 8
   sdrIFGR: 39
   sdrFlags: rfnotch_ctrl,iqcorr_ctrl
@@ -42,10 +42,10 @@ auxSdr:
   sdrId: 2238063199
   sampleIntegrationTime: 3
   delay: 2
-  sdrGain: None
+  sdrGain:
   sdrRFGR: 9
   sdrIFGR: 42
-  partialSaveBlock: None
+  partialSaveBlock:
   spectrometerMode: pfb
   pfbParams:
     nTaps: 4
