@@ -19,8 +19,8 @@ class Arduino:
         self.serial = serial.Serial(com_port, baud_rate)
         self.switch_dict = switch_dictionary
 
-        self.h_off_cmd = 'h_off'
-        self.h_on_cmd = 'h_on'
+        self.h_off_cmd = "h_off"
+        self.h_on_cmd = "h_on"
         self.temperature_control_active=temperature_control_active
         self.temp_control_upper_lim = temp_upper_limit
         self.temp_control_lower_lim = temp_lower_limit
@@ -160,6 +160,7 @@ def general_observing(arduino: Arduino,
     switch_states = []
     switch_times = []
 
+    time.sleep(0.5) # sleep to allow for arduino to give new line
     arduino.turn_on_heater() # turn on heater
     time.sleep(0.5)
 
