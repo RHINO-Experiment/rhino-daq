@@ -89,7 +89,7 @@ class Arduino:
         time.sleep(0.5)
         self.serial.write("h_on".encode())
         print('------------------------------')
-        print('Heater On')
+        print('Heater ON')
         print('------------------------------')
         self.serial.write("h_on".encode())
         time.sleep(0.5)
@@ -99,7 +99,7 @@ class Arduino:
         time.sleep(0.5)
         self.serial.write("h_off".encode())
         print('------------------------------')
-        print('Heater Off')
+        print('Heater OFF')
         print('------------------------------')
         self.serial.write("h_off".encode())
         time.sleep(0.5)
@@ -160,9 +160,9 @@ def general_observing(arduino: Arduino,
     switch_states = []
     switch_times = []
 
-    time.sleep(0.5) # sleep to allow for arduino to give new line
-    arduino.turn_on_heater() # turn on heater
-    time.sleep(0.5)
+    # time.sleep(0.5) # sleep to allow for arduino to give new line
+    # arduino.turn_on_heater() # turn on heater
+    # time.sleep(0.5)
 
     while t < t_end: # loop until end
         for d in dickeSwitchCycle: # loop through the dicke switch cycle
