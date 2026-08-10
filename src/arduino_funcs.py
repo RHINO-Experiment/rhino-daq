@@ -192,6 +192,7 @@ def general_observing(arduino: Arduino,
         sourceTarget = switchSourceTargets[sourceIdx] # set up next target
         pass
     # Convert the lists to Numpy arrays for saving
+    arduino.turn_off_heater()
     temperatures = np.array(temperatures)
     temperature_times = np.array(temperature_times)
     switch_states = np.array(switch_states, dtype='S')
