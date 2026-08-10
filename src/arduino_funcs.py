@@ -125,8 +125,6 @@ class Arduino:
             else:
                 self.turn_on_heater()
         
-
-
 def general_observing(arduino: Arduino,
                       runLength:float,
                       temperature_cadence,
