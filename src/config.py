@@ -156,9 +156,9 @@ def return_arduino_params(yaml_path):
     DickeSwitchCycleLength = obs_config['arduino']['switches']['DickeSwitchCycleLength']
 
     # temperature control
-    temperatureControlStatus = obs_config['arduino']['temperatureMonitoring']['active']
-    temperatureControlLowerLimit = obs_config['arduino']['temperatureMonitoring']['lowerLimit']
-    temperatureControlUpperLimit = obs_config['arduino']['temperatureMonitoring']['upperLimit']
+    temperatureControlStatus = obs_config['arduino']['temperatureMonitoring']['temperatureControl']['active']
+    temperatureControlLowerLimit = obs_config['arduino']['temperatureMonitoring']['temperatureControl']['lowerLimit']
+    temperatureControlUpperLimit = obs_config['arduino']['temperatureMonitoring']['temperatureControl']['upperLimit']
 
 
     return {'baudRate': baud_rate,
