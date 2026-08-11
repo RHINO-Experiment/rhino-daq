@@ -118,7 +118,7 @@ class Arduino:
 
         if any(t > self.temp_control_upper_lim for t in temperatures) and self.heater_status:
             self.turn_off_heater()
-        elif min(temperatures) < self.temp_control_ambient_lim and self.heater_status:
+        elif min(temperatures) > self.temp_control_ambient_lim and self.heater_status:
             if any(t == -273 for t in temperatures):
                 pass
             else:
