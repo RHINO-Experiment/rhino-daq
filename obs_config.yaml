@@ -12,7 +12,7 @@ observationParams:
 
 sdr:
   active: true
-  centreFrequency: 70.0e+6
+  centreFrequency: 72.0e+6
   bandwidth:  10.0e+6
   nChannels: 4069
   sdrDriver: sdrplay
