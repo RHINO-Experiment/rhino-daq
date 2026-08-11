@@ -63,8 +63,8 @@ arduino:
     nProbes: 2
     temperatureControl:
       active: true
-      upperLimit: 160
-      lowerLimit: 140
+      upperLimit: 150
+      lowerLimit: 135
       ambientLimit: 40
     
     probeLabels:

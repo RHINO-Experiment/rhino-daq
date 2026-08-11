@@ -88,6 +88,9 @@ class Arduino:
         pass
 
     def turn_on_heater(self):
+        if not self.temperature_control_active:
+            print('Temperature Control is not active, heater will not be turned on')
+            return
         self.open()
         time.sleep(2)
         self.serial.write(b"hon\n")
