@@ -28,7 +28,9 @@ def return_sdr_params(yaml_path):
     sdrGain = sdr_config['sdrGain']
     sdrRFGR = sdr_config['sdrRFGR']
     sdrIFGR = sdr_config['sdrIFGR']
+    sdrFlags = sdr_config['sdrFlags']
     delay = sdr_config['delay']
+    partialSaveBlock = sdr_config['partialSaveBlock']
     if not isinstance(sdrGain, int) or not isinstance(sdrGain, float):
         sdrGain = None
 
@@ -54,9 +56,11 @@ def return_sdr_params(yaml_path):
             'delay': delay,
             'runLength': runLength,
             'obsCachePath': obsCachePath,
+            'sdrFlags': sdrFlags,
             'active': active,
             'nTaps': nTaps,
-            'appliedWindow': appliedWindow
+            'appliedWindow': appliedWindow,
+            'partialSaveBlock': partialSaveBlock
             }
 
 def return_aux_sdr_params(yaml_path):
@@ -150,6 +154,12 @@ def return_arduino_params(yaml_path):
     dickeSwitchCycle = obs_config['arduino']['switches']['dickeSwitchCycle']
     DickeSwitchCycleLength = obs_config['arduino']['switches']['DickeSwitchCycleLength']
 
+    # temperature control
+    temperatureControlStatus = obs_config['arduino']['temperatureMonitoring']['temperatureControl']['active']
+    temperatureControlLowerLimit = obs_config['arduino']['temperatureMonitoring']['temperatureControl']['lowerLimit']
+    temperatureControlUpperLimit = obs_config['arduino']['temperatureMonitoring']['temperatureControl']['upperLimit']
+    temperatureControlAmbientLimit = obs_config['arduino']['temperatureMonitoring']['temperatureControl']['ambientLimit']
+
     return {'baudRate': baud_rate,
             'comPort': com_port,
             'switchDictionary': switch_dictionary,
@@ -162,7 +172,11 @@ def return_arduino_params(yaml_path):
             'active': active,
             'switchSourceTargets': switchSourceTargets,
             'dickeSwitchCycle': dickeSwitchCycle,
-            'DickeSwitchCycleLength': DickeSwitchCycleLength}
+            'DickeSwitchCycleLength': DickeSwitchCycleLength,
+            'temperatureControlStatus':temperatureControlStatus,
+            'temperatureControlLowerLimit':temperatureControlLowerLimit,
+            'temperatureControlUpperLimit':temperatureControlUpperLimit,
+            'temperatureControlAmbientLimit':temperatureControlAmbientLimit}
     
 def return_cache_params(yaml_path):
     with open(yaml_path,'r') as f:

@@ -27,7 +27,6 @@ def main():
         params = config.return_arduino_params(yaml_path)
     
     # Observation Parameters
-    runLength = params['runLength']
     obsCachePath = params['obsCachePath']
 
     # returns from main if the program is not active
@@ -39,63 +38,65 @@ def main():
     temp_monitoring_status = params['temp_monitoring_status']
     switch_status = params['switch_status']
 
-    baud_rate = params['baudRate']
-    com_port = params['comPort']
+    arduino_object = arduino_funcs.Arduino(n__temp_sens=params['n_temp_sens'],
+                                           com_port=params['comPort'],
+                                           baud_rate=params['baudRate'],
+                                           switch_dictionary=params['switchDictionary'],
+                                           temperature_control_active=params['temperatureControlStatus'],
+                                           temp_lower_limit=params['temperatureControlLowerLimit'],
+                                           temp_upper_limit=params['temperatureControlUpperLimit'],
+                                           temp_ambient_limit=params['temperatureControlAmbientLimit'])
+    try:
+        if temp_monitoring_status and switch_status:
+            print('|| arduino_control.py Begining General Observing ||')
+            temperatures, temperature_times, \
+            switch_states, switch_times = arduino_funcs.general_observing(arduino=arduino_object,
+                                                                        runLength=params['runLength'],
+                                                                        temperature_cadence=params['temp_cadence'],
+                                                                        dickeSwitchCycleLength=params['DickeSwitchCycleLength'],
+                                                                        switchSourceTargets=params['switchSourceTargets'],
+                                                                        dickeSwitchCycle=params['dickeSwitchCycle'])
 
-    # dictionary for switches e.g 'load':'t1t1e5'
-    switch_dictionary = params['switchDictionary']
-    n_temp_sens = params['n_temp_sens']
-    temp_cadence = params['temp_cadence']
+            np.savez_compressed(f'{obsCachePath}/temperature_data.npz',
+                                temperatures=temperatures,
+                                temperature_times=temperature_times)
 
-    # switchSourceTargets
-    switchSourceTargets = params['switchSourceTargets']
-    dickeSwitchCycle = params['dickeSwitchCycle']
-    DickeSwitchCycleLength = params['DickeSwitchCycleLength']
+            np.savez_compressed(f'{obsCachePath}/switch_data.npz',
+                                switch_states=switch_states,
+                                switch_times=switch_times)
 
-    arduino_object = arduino_funcs.Arduino(n__temp_sens=n_temp_sens,
-                                           com_port=com_port,
-                                           baud_rate=baud_rate,
-                                           switch_dictionary=switch_dictionary)
-
-    if temp_monitoring_status and switch_status:
-        print('|| arduino_control.py Begining General Observing ||')
-        temperatures, temperature_times, \
-        switch_states, switch_times = arduino_funcs.general_observing(arduino=arduino_object,
-                                                                      runLength=runLength,
-                                                                      temperature_cadence=temp_cadence,
-                                                                      dickeSwitchCycleLength=DickeSwitchCycleLength,
-                                                                      switchSourceTargets=switchSourceTargets,
-                                                                      dickeSwitchCycle=dickeSwitchCycle)
-        np.save(f'{obsCachePath}/temperature_array.npy', arr=temperatures)
-        np.save(f'{obsCachePath}/temperature_times.npy', arr=temperature_times)
-        np.save(f'{obsCachePath}/switch_states.npy', arr=switch_states)
-        np.save(f'{obsCachePath}/switch_times.npy', arr=switch_times)
-        print('Arduino Function Finished and Cached')
-        
-        return
+            print('Arduino Function Finished and Cached')
+            
+            return
 
 
-    elif temp_monitoring_status and not switch_status:
-        temperatures, temperature_times = arduino_funcs.continous_temperatures(arduino=arduino_object,
-                                                                               run_length=runLength,
-                                                                               temperature_cadence=temp_cadence)
-        np.save(f'{obsCachePath}/temperature_array.npy', arr=temperatures)
-        np.save(f'{obsCachePath}/temperature_times.npy', arr=temperature_times)
+        elif temp_monitoring_status and not switch_status:
+            temperatures, temperature_times = arduino_funcs.continous_temperatures(arduino=arduino_object,
+                                                                                run_length=params['runLength'],
+                                                                                temperature_cadence=params['temp_cadence'])
+            np.savez_compressed(f'{obsCachePath}/temperature_data.npz',
+                                        temperatures=temperatures,
+                                        temperature_times=temperature_times)
 
-        print('Arduino Function Finished and Cached')
-        return
+            print('Arduino Function Finished and Cached')
+            return
 
-    if switch_status and not temp_monitoring_status:
-        
-        switch_states, switch_times = arduino_funcs.continous_equal_switching(arduino_object,
-                                                                              runLength,
-                                                                              DickeSwitchCycleLength,
-                                                                              switchSourceTargets)
+        if switch_status and not temp_monitoring_status:
+            
+            switch_states, switch_times = arduino_funcs.continous_equal_switching(arduino_object,
+                                                                                params['runLength'],
+                                                                                params['DickeSwitchCycleLength'],
+                                                                                params['switchSourceTargets'])
 
-        np.save(f'{obsCachePath}/switch_states.npy', arr=switch_states)
-        np.save(f'{obsCachePath}/switch_times.npy', arr=switch_times)
-        print('Arduino Function Finished and Cached')
-        return
+            np.savez_compressed(f'{obsCachePath}/switch_data.npz',
+                                        switch_states=switch_states,
+                                        switch_times=switch_times)
+            print('Arduino Function Finished and Cached')
+            return
+    finally:
+        arduino_object.open()
+        arduino_object.turn_off_heater()
+        arduino_object.close() # Ensure heater is turned off even in error cases
 
 
 if __name__ == "__main__":

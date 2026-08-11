@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import time
 import requests
 
@@ -16,25 +16,42 @@ from astropy.time import Time
 import json
 
 
-class AirspaceRecorder:
-    def __init__(self, latitude, longitude, n2yo_api_key=None, bounding_delta=0.2, sat_search_radius=30):
-        """Initializes the recorder with a target location and optional API key."""
+class SituationAwarenessRecorder:
+    def __init__(self, latitude, longitude, n2yo_api_key=None, 
+                 flight_bounding_delta=0.2, sat_search_radius=30):
+        """
+        Use public web APIs to monitor the local environment, including 
+        reported weather, flights, satellites, and ionosphere.
+        
+        Parameters:
+            latitude (float):
+                Latitude of the site, in decimal degrees.
+            longitude (float):
+                Latitude of the site, in decimal degrees.
+            n2yo_api_key (str):
+                API key generated for a registered user on the `n2yo` service. 
+            flight_bounding_delta (float):
+                Width of the (square) bounding box around the site, in decimal degrees. Used to define the  sat_search_radius=30
+        """
         self.lat = latitude
         self.lon = longitude
         self.n2yo_api_key = n2yo_api_key
         self.sat_search_radius = sat_search_radius
 
-        self.bounding_box = {
-            "lamin": latitude - bounding_delta,
-            "lamax": latitude + bounding_delta,
-            "lomin": longitude - bounding_delta,
-            "lomax": longitude + bounding_delta,
+        self.flight_bounding_box = {
+            "lamin": latitude - flight_bounding_delta,
+            "lamax": latitude + flight_bounding_delta,
+            "lomin": longitude - flight_bounding_delta,
+            "lomax": longitude + flight_bounding_delta,
         }
-
+        
+        # Set current location
         self.earth_location = EarthLocation(
             lat=latitude * u.deg, lon=longitude * u.deg, height=0 * u.m
         )
-
+        
+        # Initialise data stores
+        # List of dict objects with rich data
         self.data_store = {
             "weather":      [],
             "flights":      [],
@@ -42,12 +59,32 @@ class AirspaceRecorder:
             "celestial":    [],
             "ionosphere":   []
         }
-
+        
+        # Create empty journal for tabular data
+        self.reset_journal()
+        
+    
+    def reset_journal(self):
+        """
+        Create empty journal for tabular data.
+        """
+        # Empty table with object az/el, name, and timestamp
+        self.journal = {
+            'object':    [],
+            'az':        [],
+            'el':        [],
+            'timestamp': [],
+        }
+    
     def fetch_flights(self):
-        """Queries OpenSky API for aircraft state vectors."""
+        """
+        Query the OpenSky API for aircraft state vectors.
+        """
         url = "https://opensky-network.org/api/states/all"
         try:
-            response = requests.get(url, params=self.bounding_box, timeout=10)
+            response = requests.get(url, 
+                                    params=self.flight_bounding_box, 
+                                    timeout=10)
             if response.status_code == 200:
                 return response.json().get("states", [])
         except Exception as e:
@@ -55,7 +92,9 @@ class AirspaceRecorder:
         return None
 
     def fetch_weather(self):
-        """Queries Open-Meteo API for current weather conditions."""
+        """
+        Query the Open-Meteo API for current weather conditions.
+        """
         url = "https://api.open-meteo.com/v1/forecast"
         params = {
             "latitude": self.lat,
@@ -71,7 +110,9 @@ class AirspaceRecorder:
         return None
 
     def fetch_satellites(self):
-        """Queries N2YO API for overhead satellites (requires API key)."""
+        """
+        Query the N2YO API for overhead satellites (requires API key).
+        """
         if not self.n2yo_api_key:
             return None
 
@@ -91,7 +132,10 @@ class AirspaceRecorder:
         return None
 
     def fetch_celestial_bodies(self, current_time):
-        """Calculates Altitude and Azimuth for Sun, Moon, and Galactic Centre."""
+        """
+        Calculate the altitude and azimuth for the Sun, Moon, and Galactic 
+        Centre.
+        """
         obs_time = Time(current_time)
         altaz_frame = AltAz(obstime=obs_time, location=self.earth_location)
 
@@ -135,12 +179,15 @@ class AirspaceRecorder:
           if response.status_code == 200:
             data = response.json()
             
-            # If querying a gridded product, find the grid point closest to self.lat, self.lon
-            # (This block parses typical JSON grid structures mapping lat/lon to TECU)
+            # If querying a gridded product, find the grid point closest to 
+            # self.lat, self.lon (this block parses typical JSON grid 
+            # structures mapping lat/lon to TECU)
             for entry in data:
               if "lat" in entry and "lon" in entry:
-                # Match closest coordinate cell (assuming 1-degree or 5-degree resolution grids)
-                if abs(entry["lat"] - self.lat) < 1.0 and abs(entry["lon"] - self.lon) < 1.0:
+                # Match closest coordinate cell (assuming 1-degree or 5-degree 
+                # resolution grids)
+                if abs(entry["lat"] - self.lat) < 1.0 \
+                    and abs(entry["lon"] - self.lon) < 1.0:
                   return {
                       "tec_units": entry.get("tec", entry.get("value")),
                       "quality": entry.get("quality", "N/A")
@@ -155,12 +202,15 @@ class AirspaceRecorder:
         return None
     
     
-    def calculate_flight_azel(self, flight_record, current_time):
-        """Converts a flight record's lat/lon/altitude into local Azimuth and Elevation."""
+    def calculate_azel(self, object_lat, object_lon, object_alt_m, current_time):
+        """
+        Convert a flight or sateliite record's lat/lon/altitude into local 
+        Azimuth and Elevation.
+        """
         try:
-            f_lat = flight_record["latitude"]
-            f_lon = flight_record["longitude"]
-            f_alt = flight_record["altitude_m"]
+            f_lat = object_lat
+            f_lon = object_lon
+            f_alt = object_alt_m
 
             if f_lat is None or f_lon is None or f_alt is None:
                 return None, None
@@ -178,32 +228,24 @@ class AirspaceRecorder:
         except Exception:
             raise
             return None, None
-
-    def calculate_satellite_azel(self, sat_record, current_time):
-        """Converts a satellite record's lat/lon/altitude into local Azimuth and Elevation."""
-        try:
-            f_lat = sat_record["latitude"]
-            f_lon = sat_record["longitude"]
-            f_alt = sat_record["altitude_km"] * 1e3  # convert to metres
-
-            if f_lat is None or f_lon is None or f_alt is None:
-                return None, None
-
-            sat_location = EarthLocation(
-                lat=f_lat * u.deg, lon=f_lon * u.deg, height=f_alt * u.m
-            )
-            obs_time = Time(current_time)
-            altaz_frame = AltAz(obstime=obs_time, location=self.earth_location)
-
-            coord = sat_location.get_itrs(obstime=obs_time).transform_to(altaz_frame)
-            return coord.az.deg, coord.alt.deg
-        except Exception:
-            raise
-            return None, None
-
+    
+    def store_journal_record(self, objname, az, el, timestamp):
+        """
+        Store one row in the journal of object locations.
+        """
+        self.journal['az'].append(az)
+        self.journal['el'].append(el)
+        self.journal['object'].append(objname)
+        self.journal['timestamp'].append(timestamp)
+        
     def poll_once(self):
-        """Executes a single data collection cycle and appends to dictionaries."""
-        timestamp_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        """
+        Executes a single data collection cycle and appends to dictionaries.
+        """
+        # Get current time as string and integer
+        current_time = datetime.now(timezone.utc)
+        timestamp_str = current_time.strftime("%Y-%m-%d %H:%M:%S")    
+        timestamp_int = current_time.strftime("%Y%m%d%H%M%S")
 
         # (1) Celestial Bodies
         celestial_results = self.fetch_celestial_bodies(timestamp_str)
@@ -216,6 +258,11 @@ class AirspaceRecorder:
                     "elevation_deg": body["elevation_deg"],
                 }
             )
+            self.store_journal_record(objname=body["name"], 
+                                      timestamp=timestamp_int,
+                                      az=body["azimuth_deg"], 
+                                      el=body["elevation_deg"] 
+                                      )
 
         # (2) Weather
         weather = self.fetch_weather()
@@ -248,11 +295,23 @@ class AirspaceRecorder:
                 }
 
                 # Calculate local Az/El for this flight
-                az, el = self.calculate_flight_azel(flight_record, timestamp_str)
+                az, el = self.calculate_azel(
+                                object_lat=flight_record['latitude'], 
+                                object_lon=flight_record['longitude'], 
+                                object_alt_m=flight_record['altitude_m'], 
+                                current_time=timestamp_str
+                            )
                 flight_record["azimuth_deg"] = az
                 flight_record["elevation_deg"] = el
-
+                
+                # Store in structured dict and journal
                 self.data_store["flights"].append(flight_record)
+                self.store_journal_record(objname=flight_record['callsign'], 
+                                          timestamp=timestamp_int,
+                                          az=az, 
+                                          el=el 
+                                          )
+                
                 flight_count += 1
             print(
                 f"[{timestamp_str}] Logged {flight_count} flights (with Az/El"
@@ -277,11 +336,21 @@ class AirspaceRecorder:
                 }
 
                 # Calculate local Az/El for this satellite
-                az, el = self.calculate_satellite_azel(sat_record, timestamp_str)
-                sat_record["azimuth_deg"] = az  # sat.get("azimuth"),
-                sat_record["elevation_deg"] = el  # sat.get("elevation"),
+                az, el = self.calculate_azel(
+                                object_lat=sat_record['latitude'], 
+                                object_lon=sat_record['longitude'], 
+                                object_alt_m=sat_record['altitude_km'] * 1e3, 
+                                current_time=timestamp_str
+                            )
+                sat_record["azimuth_deg"] = az
+                sat_record["elevation_deg"] = el
 
                 self.data_store["satellites"].append(sat_record)
+                self.store_journal_record(objname=sat_record['satellite_name'], 
+                                          timestamp=timestamp_int,
+                                          az=az, 
+                                          el=el 
+                                          )
                 sat_count += 1
             print(f"[{timestamp_str}] Logged {sat_count} satellites.")
         
@@ -291,8 +360,10 @@ class AirspaceRecorder:
         #self.data_store["ionosphere"].append(ionosphere)
         
 
-    def run(self, interval_seconds=60, max_iter=None, verbose=False):
-        """Starts the continuous polling loop."""
+    def start_monitoring(self, interval_seconds=60, max_iter=None, verbose=False):
+        """
+        Starts the continuous polling loop.
+        """
         print(
             f"Starting AirspaceRecorder for ({self.lat}, {self.lon}). Press"
             " Ctrl+C to stop."
@@ -300,11 +371,20 @@ class AirspaceRecorder:
         try:
             i = 0
             while True:
+                # Fetch data
                 self.poll_once()
                 i += 1
+                
+                # Print data to screen if requested
                 if verbose:
                     print(json.dumps(self.data_store, indent=4))
                 print("-" * 40)
+                
+                # Output journal record and then reset
+                with open("journal.csv", 'a') as f:
+                    for i in range(len(self.journal['timestamp'])):
+                    
+                self.reset_journal()
 
                 # Test if maximum no. of iterations has been reached
                 if max_iter is not None:
@@ -315,52 +395,23 @@ class AirspaceRecorder:
                 time.sleep(interval_seconds)
 
         except KeyboardInterrupt:
-            print(
-                "\nRecorder stopped by user. Data is available in `recorder.data_store`."
-            )
+            print("\nRecorder stopped by user.")
 
 
 if __name__ == "__main__":
+    
+    # Read n2yo API key from file
     with open("n2yo_api_key.apikey", "r") as f:
         n2yo_api_key = f.readline()[:-1]  # trim trailing newline
 
     # Run for a single iteration
-    asrec = AirspaceRecorder(
+    sa = SituationAwarenessRecorder(
         latitude=53.234551,
         longitude=-2.3047266,
-        bounding_delta=0.3,
+        flight_bounding_delta=0.3,
         n2yo_api_key=n2yo_api_key,
     )
-    asrec.run(max_iter=1, verbose=True)
-    print("Ready to plot")
     
-    """
-    import pylab as plt
-
-    plt.subplot(111)
-
-    # Satellite
-    for record in asrec.data_store["satellites"]:
-        try:
-            plt.plot(record["azimuth_deg"], record["elevation_deg"], "r.", alpha=0.2)
-        except:
-            pass
-
-    # Aircraft
-    for record in asrec.data_store["flights"]:
-        try:
-            plt.plot(record["azimuth_deg"], record["elevation_deg"], "vx", ms=20)
-        except:
-            pass
-
-    # Celestial
-    for record in asrec.data_store["celestial"]:
-        try:
-            plt.plot(
-                record["azimuth_deg"], record["elevation_deg"], "go", alpha=0.3, ms=20
-            )
-        except:
-            pass
-
-    plt.show()
-    """
+    # Start monitoring
+    sa.start_monitoring(max_iter=None, interval_seconds=60, verbose=False)
+    
