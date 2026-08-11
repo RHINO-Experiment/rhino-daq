@@ -119,12 +119,14 @@ class Arduino:
 
         if min(temperatures) > self.temp_control_ambient_lim and self.heater_status:
             if any(t == -273 for t in temperatures):
-                pass
+                return
             else:
                 self.turn_off_heater()
+                return
 
         elif any(t > self.temp_control_upper_lim for t in temperatures) and self.heater_status:
             self.turn_off_heater()
+            return
 
         else:
             # turn on heater if temps go below limit and 
@@ -134,6 +136,7 @@ class Arduino:
                     return
                 else:
                     self.turn_on_heater()
+                    return
         
         
 def general_observing(arduino: Arduino,
