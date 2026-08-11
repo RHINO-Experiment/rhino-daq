@@ -21,8 +21,8 @@ sdr:
   sampleIntegrationTime: 1
   delay: 2
   sdrGain:
-  sdrRFGR: 8
-  sdrIFGR: 39
+  sdrRFGR: 6
+  sdrIFGR: 36
   sdrFlags: rfnotch_ctrl,iqcorr_ctrl
   partialSaveBlock: None
   spectrometerMode: pfb
@@ -43,8 +43,8 @@ auxSdr:
   sampleIntegrationTime: 3
   delay: 2
   sdrGain:
-  sdrRFGR: 9
-  sdrIFGR: 42
+  sdrRFGR: 6
+  sdrIFGR: 36
   partialSaveBlock:
   spectrometerMode: pfb
   pfbParams:
