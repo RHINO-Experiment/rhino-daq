@@ -2,8 +2,8 @@
 
 
 observationParams:
-  runLength: 600
-  preRunLength: 600
+  runLength: 3600
+  preRunLength: 300
   obsCachePath: /media/usb0/rhino-data/obs_cache
   dataDirectory: /media/usb0/rhino-data/data
   preRunDirectory: /media/usb0/rhino-data/prerun
@@ -65,6 +65,7 @@ arduino:
       active: true
       upperLimit: 160
       lowerLimit: 140
+      ambientLimit: 40
     
     probeLabels:
     - load_monitoring

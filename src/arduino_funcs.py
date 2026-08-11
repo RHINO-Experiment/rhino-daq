@@ -11,7 +11,8 @@ class Arduino:
                  switch_dictionary,
                  temperature_control_active = True,
                  temp_upper_limit = 160,
-                 temp_lower_limit = 140):
+                 temp_lower_limit = 140,
+                 temp_ambient_limit = 40):
         
         self.com_port = com_port
         self.baud_rate = baud_rate
@@ -24,6 +25,7 @@ class Arduino:
         self.temperature_control_active=temperature_control_active
         self.temp_control_upper_lim = temp_upper_limit
         self.temp_control_lower_lim = temp_lower_limit
+        self.temp_control_ambient_lim = temp_ambient_limit
         self.heater_status = False # false for off, true for on
         self.open()
         pass
@@ -116,6 +118,11 @@ class Arduino:
 
         if any(t > self.temp_control_upper_lim for t in temperatures) and self.heater_status:
             self.turn_off_heater()
+        elif min(temperatures) < self.temp_control_ambient_lim and self.heater_status:
+            if any(t == -273 for t in temperatures):
+                pass
+            else:
+                self.turn_off_heater()
 
         # turn on heater if temps go below limit and 
         # it is not already on
@@ -124,6 +131,7 @@ class Arduino:
                 return
             else:
                 self.turn_on_heater()
+        
         
 def general_observing(arduino: Arduino,
                       runLength:float,

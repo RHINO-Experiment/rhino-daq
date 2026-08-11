@@ -363,6 +363,7 @@ def main():
                       appliedWindow = params['appliedWindow'],
                       obsCachePath=params['obsCachePath'],
                       #partial_save_block=params['partialSaveBlock'],
+                      #FIXME sort out yaml None passed here
                       )
     
     # Save the full set of results to a compressed numpy file

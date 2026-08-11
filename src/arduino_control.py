@@ -44,7 +44,8 @@ def main():
                                            switch_dictionary=params['switchDictionary'],
                                            temperature_control_active=params['temperatureControlStatus'],
                                            temp_lower_limit=params['temperatureControlLowerLimit'],
-                                           temp_upper_limit=params['temperatureControlUpperLimit'])
+                                           temp_upper_limit=params['temperatureControlUpperLimit'],
+                                           temp_ambient_limit=params['temperatureControlAmbientLimit'])
 
     if temp_monitoring_status and switch_status:
         print('|| arduino_control.py Begining General Observing ||')
