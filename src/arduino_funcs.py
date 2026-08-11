@@ -71,10 +71,11 @@ class Arduino:
     
     def set_switch_state(self, switch_cmd, close=False):
         self.open()
-        time.sleep(0.5)
+        time.sleep(2)
         cmd = self.switch_dict[switch_cmd]
         print(cmd)
         self.serial.write(cmd.encode())
+        self.serial.flush()
         print('------------------------------')
         print('Switched to ', switch_cmd)
         print('------------------------------')
@@ -94,8 +95,6 @@ class Arduino:
         print('------------------------------')
         print('Heater ON')
         print('------------------------------')
-        self.serial.write(b"hon\n")
-        self.serial.flush()
         self.heater_status = True
     def turn_off_heater(self):
         self.open()
@@ -105,14 +104,13 @@ class Arduino:
         print('------------------------------')
         print('Heater OFF')
         print('------------------------------')
-        self.serial.write(b"hoff\n")
-        self.serial.flush()
         self.heater_status = False
     
     def temperature_control(self,
                             temperatures):
         # temperatures is a [t1, t2] list
-        # turn off heater if threshold is met
+       # turn off heater if threshold is met
+        print('Heater Status - ', self.heater_status)
         if not self.temperature_control_active:
             return
 
