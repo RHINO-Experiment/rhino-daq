@@ -46,53 +46,57 @@ def main():
                                            temp_lower_limit=params['temperatureControlLowerLimit'],
                                            temp_upper_limit=params['temperatureControlUpperLimit'],
                                            temp_ambient_limit=params['temperatureControlAmbientLimit'])
+    try:
+        if temp_monitoring_status and switch_status:
+            print('|| arduino_control.py Begining General Observing ||')
+            temperatures, temperature_times, \
+            switch_states, switch_times = arduino_funcs.general_observing(arduino=arduino_object,
+                                                                        runLength=params['runLength'],
+                                                                        temperature_cadence=params['temp_cadence'],
+                                                                        dickeSwitchCycleLength=params['DickeSwitchCycleLength'],
+                                                                        switchSourceTargets=params['switchSourceTargets'],
+                                                                        dickeSwitchCycle=params['dickeSwitchCycle'])
 
-    if temp_monitoring_status and switch_status:
-        print('|| arduino_control.py Begining General Observing ||')
-        temperatures, temperature_times, \
-        switch_states, switch_times = arduino_funcs.general_observing(arduino=arduino_object,
-                                                                      runLength=params['runLength'],
-                                                                      temperature_cadence=params['temp_cadence'],
-                                                                      dickeSwitchCycleLength=params['DickeSwitchCycleLength'],
-                                                                      switchSourceTargets=params['switchSourceTargets'],
-                                                                      dickeSwitchCycle=params['dickeSwitchCycle'])
+            np.savez_compressed(f'{obsCachePath}/temperature_data.npz',
+                                temperatures=temperatures,
+                                temperature_times=temperature_times)
 
-        np.savez_compressed(f'{obsCachePath}/temperature_data.npz',
-                            temperatures=temperatures,
-                            temperature_times=temperature_times)
+            np.savez_compressed(f'{obsCachePath}/switch_data.npz',
+                                switch_states=switch_states,
+                                switch_times=switch_times)
 
-        np.savez_compressed(f'{obsCachePath}/switch_data.npz',
-                            switch_states=switch_states,
-                            switch_times=switch_times)
-
-        print('Arduino Function Finished and Cached')
-        
-        return
+            print('Arduino Function Finished and Cached')
+            
+            return
 
 
-    elif temp_monitoring_status and not switch_status:
-        temperatures, temperature_times = arduino_funcs.continous_temperatures(arduino=arduino_object,
-                                                                               run_length=params['runLength'],
-                                                                               temperature_cadence=params['temp_cadence'])
-        np.savez_compressed(f'{obsCachePath}/temperature_data.npz',
-                                    temperatures=temperatures,
-                                    temperature_times=temperature_times)
+        elif temp_monitoring_status and not switch_status:
+            temperatures, temperature_times = arduino_funcs.continous_temperatures(arduino=arduino_object,
+                                                                                run_length=params['runLength'],
+                                                                                temperature_cadence=params['temp_cadence'])
+            np.savez_compressed(f'{obsCachePath}/temperature_data.npz',
+                                        temperatures=temperatures,
+                                        temperature_times=temperature_times)
 
-        print('Arduino Function Finished and Cached')
-        return
+            print('Arduino Function Finished and Cached')
+            return
 
-    if switch_status and not temp_monitoring_status:
-        
-        switch_states, switch_times = arduino_funcs.continous_equal_switching(arduino_object,
-                                                                              params['runLength'],
-                                                                              params['DickeSwitchCycleLength'],
-                                                                              params['switchSourceTargets'])
+        if switch_status and not temp_monitoring_status:
+            
+            switch_states, switch_times = arduino_funcs.continous_equal_switching(arduino_object,
+                                                                                params['runLength'],
+                                                                                params['DickeSwitchCycleLength'],
+                                                                                params['switchSourceTargets'])
 
-        np.savez_compressed(f'{obsCachePath}/switch_data.npz',
-                                    switch_states=switch_states,
-                                    switch_times=switch_times)
-        print('Arduino Function Finished and Cached')
-        return
+            np.savez_compressed(f'{obsCachePath}/switch_data.npz',
+                                        switch_states=switch_states,
+                                        switch_times=switch_times)
+            print('Arduino Function Finished and Cached')
+            return
+    finally:
+        arduino_object.open()
+        arduino_object.turn_off_heater()
+        arduino_object.close() # Ensure heater is turned off even in error cases
 
 
 if __name__ == "__main__":
