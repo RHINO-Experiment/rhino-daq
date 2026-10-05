@@ -15,7 +15,7 @@ sdr:
   centreFrequency: 70.0e+6
   sampleRate:  30.73e+6
   lpfBandwidth: 30.73e+6
-  nChannels: 4069
+  nChannels: 4096
   sdrDriver: lime
   sampleIntegrationTime: 1
   delay: 2
