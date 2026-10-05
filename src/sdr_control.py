@@ -126,7 +126,7 @@ def measure_spectra(sampleIntegrationTime,
     # Set up channelisation mode
     if spectrometerMode == 'fft':
         # Number of frames for each time sample
-        n_frames = int(sampleIntegrationTime * bandwidth / nChannels)
+        n_frames = int(sampleIntegrationTime * sampleRate / nChannels)
         
         # Set spectrometer function and sampling parameters
         spectrometer_func = spectrum.buffer_to_psd_fft
@@ -140,7 +140,7 @@ def measure_spectra(sampleIntegrationTime,
         # Set spectrometer function and sampling parameters
         spectrometer_func = spectrum.buffer_to_psd_pfb
         n_spec_points = nChannels * nTaps # no. sample points needed to form spectrum
-        n_frames = int(sampleIntegrationTime * bandwidth / (nChannels * nTaps))
+        n_frames = int(sampleIntegrationTime * sampleRate / (nChannels * nTaps))
 
     # ------------------------------
     # SoapySDR set-up
@@ -168,7 +168,7 @@ def measure_spectra(sampleIntegrationTime,
                 print(f"  SDR setting: {flag}=false")
     
     # Set gain mode and settings manually, rather than using AGC
-    if sdrDriver is not 'lime':
+    if sdrDriver != 'lime':
         sdr.setGainMode(SOAPY_SDR_RX, rx_chan, False) # turn OFF AGC - legacy
 
     # gain settings
