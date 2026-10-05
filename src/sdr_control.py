@@ -153,19 +153,19 @@ def measure_spectra(sampleIntegrationTime,
     sdr.setBandwidth(SOAPY_SDR_RX, rx_chan, int(lpfBandwidth))
     
     # Set settings, e.g. notch filters (some may be ignored; depends on SDR)
-    sdr_flags = sdrFlags.strip().replace(" ", "").split(",")
-    for flag in sdr_flags:
-        if flag not in AVAILABLE_SDR_FLAGS:
-            raise ValueError(f"SDR flag '{flag}' not found in AVAILABLE_SDR_FLAGS")
-    for flag in AVAILABLE_SDR_FLAGS:
-        if flag in sdr_flags:
-            sdr.writeSetting(SOAPY_SDR_RX, rx_chan, flag, "true")
-            if verbose:
-                print(f"  SDR setting: {flag}=true")
-        else:
-            sdr.writeSetting(SOAPY_SDR_RX, rx_chan, flag, "false")
-            if verbose:
-                print(f"  SDR setting: {flag}=false")
+    # sdr_flags = sdrFlags.strip().replace(" ", "").split(",")
+    # for flag in sdr_flags:
+    #     if flag not in AVAILABLE_SDR_FLAGS:
+    #         raise ValueError(f"SDR flag '{flag}' not found in AVAILABLE_SDR_FLAGS")
+    # for flag in AVAILABLE_SDR_FLAGS:
+    #     if flag in sdr_flags:
+    #         sdr.writeSetting(SOAPY_SDR_RX, rx_chan, flag, "true")
+    #         if verbose:
+    #             print(f"  SDR setting: {flag}=true")
+    #     else:
+    #         sdr.writeSetting(SOAPY_SDR_RX, rx_chan, flag, "false")
+    #         if verbose:
+    #             print(f"  SDR setting: {flag}=false")
     
     # Set gain mode and settings manually, rather than using AGC
     if sdrDriver != 'lime':
