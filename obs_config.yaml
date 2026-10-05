@@ -2,8 +2,8 @@
 
 
 observationParams:
-  runLength: 300
-  preRunLength: 300
+  runLength: 180
+  preRunLength: 180
   obsCachePath: /media/usb0/rhino-data/obs_cache
   dataDirectory: /media/usb0/rhino-data/data
   preRunDirectory: /media/usb0/rhino-data/prerun

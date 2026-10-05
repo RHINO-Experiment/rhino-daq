@@ -180,8 +180,8 @@ def measure_spectra(sampleIntegrationTime,
         sdr.setGain(SOAPY_SDR_RX, rx_chan, "PGA", pgaGain)
     if verbose:
         print("Current LNA Gain:", sdr.getGain(SOAPY_SDR_RX, rx_chan, "LNA"))
-        print("Current LNA Gain:", sdr.getGain(SOAPY_SDR_RX, rx_chan, "TIA"))
-        print("Current LNA Gain:", sdr.getGain(SOAPY_SDR_RX, rx_chan, "PGA"))
+        print("Current TIA Gain:", sdr.getGain(SOAPY_SDR_RX, rx_chan, "TIA"))
+        print("Current PGA Gain:", sdr.getGain(SOAPY_SDR_RX, rx_chan, "PGA"))
 
 
     # get IQ format
