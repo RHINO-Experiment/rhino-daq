@@ -21,8 +21,8 @@ sdr:
   delay: 2
   combinedGain:
   lnaGain: 30
-  pgaGain: 20
-  tiaGain: 0
+  tiaGain: 20
+  pgaGain: 0
   iqFormat: CF32
   sdrFlags: rfnotch_ctrl,iqcorr_ctrl
   partialSaveBlock: None
