@@ -138,11 +138,15 @@ def main():
             sdr_group.create_dataset('adc_stats',
                                      data=sdr_npz['adc_stats'],
                                      dtype=sdr_npz['adc_stats'].dtype)
+            sdr_group.create_dataset('board_temperatures',
+                                     data=sdr_npz['board_temperatures'],
+                                     dtype=sdr_npz['board_temperatures'].dtype)
         else: # else create empty data sets
             sdr_group.create_dataset('sdr_waterfall', dtype="f")
             sdr_group.create_dataset('sdr_freqs', dtype="f")
             sdr_group.create_dataset('sdr_times', dtype="f")
             sdr_group.create_dataset('adc_stats', dype="f")
+            sdr_group.create_dataset('board_temperatures', dype="f")
 
         
         if obs_config['auxSdr']['active']:

@@ -18,21 +18,22 @@ def return_sdr_params(yaml_path):
     sdr_config = obs_config[sdr_config_path]
     active = sdr_config['active']
     centreFrequency = sdr_config['centreFrequency']
-    bandwidth = sdr_config['bandwidth']
+    sampleRate = sdr_config['sampleRate']
+    lpfBandwidth = sdr_config['lpfBandwidth']
     nChannels = sdr_config['nChannels']
     sdrDriver = sdr_config['sdrDriver']
-    sdrLabel = sdr_config['sdrLabel']
-    sdrId = sdr_config['sdrId']
     sampleIntegrationTime = sdr_config['sampleIntegrationTime']
     spectrometerMode = sdr_config['spectrometerMode']
-    sdrGain = sdr_config['sdrGain']
-    sdrRFGR = sdr_config['sdrRFGR']
-    sdrIFGR = sdr_config['sdrIFGR']
+    combinedGain = sdr_config['combinedGain']
+    lnaGain = sdr_config['lnaGain']
+    pgaGain = sdr_config['pgaGain']
+    tiaGain = sdr_config['tiaGain']
+    iqFormat = sdr_config['iqFormat']
     sdrFlags = sdr_config['sdrFlags']
     delay = sdr_config['delay']
     partialSaveBlock = sdr_config['partialSaveBlock']
-    if not isinstance(sdrGain, int) or not isinstance(sdrGain, float):
-        sdrGain = None
+    if not isinstance(combinedGain, int) or not isinstance(combinedGain, float):
+        combinedGain = None
 
     if spectrometerMode == 'pfb':
         nTaps = sdr_config['pfbParams']['nTaps']
@@ -43,16 +44,17 @@ def return_sdr_params(yaml_path):
 
 
     return {'centreFrequency': centreFrequency,
-            'bandwidth': bandwidth,
+            'sampleRate': sampleRate,
+            'lpfBandwidth':lpfBandwidth,
             'nChannels': nChannels,
             'sdrDriver': sdrDriver,
-            'sdrLabel': sdrLabel,
-            'sdrId': sdrId,
             'sampleIntegrationTime': sampleIntegrationTime,
             'spectrometerMode': spectrometerMode,
-            'sdrGain': sdrGain,
-            'sdrRFGR': sdrRFGR,
-            'sdrIFGR': sdrIFGR,
+            'combinedGain': combinedGain,
+            'lnaGain':lnaGain,
+            'pgaGain':pgaGain,
+            'tiaGain':tiaGain,
+            'iqFormat':iqFormat,
             'delay': delay,
             'runLength': runLength,
             'obsCachePath': obsCachePath,

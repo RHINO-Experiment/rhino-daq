@@ -2,7 +2,7 @@
 
 
 observationParams:
-  runLength: 21600
+  runLength: 600
   preRunLength: 300
   obsCachePath: /media/usb0/rhino-data/obs_cache
   dataDirectory: /media/usb0/rhino-data/data
@@ -12,17 +12,18 @@ observationParams:
 
 sdr:
   active: true
-  centreFrequency: 72.0e+6
-  bandwidth:  10.0e+6
+  centreFrequency: 70.0e+6
+  sampleRate:  30.73e+6
+  lpfBandwidth: 30.73e+6
   nChannels: 4069
-  sdrDriver: sdrplay
-  sdrLabel: SDRplay Dev0 RSPdx 2302031848
-  sdrId: 2302031848
+  sdrDriver: lime
   sampleIntegrationTime: 1
   delay: 2
-  sdrGain:
-  sdrRFGR: 6
-  sdrIFGR: 36
+  combinedGain:
+  lnaGain: 30
+  pgaGain: 20
+  tiaGain: 0
+  iqFormat: CF32
   sdrFlags: rfnotch_ctrl,iqcorr_ctrl
   partialSaveBlock: None
   spectrometerMode: pfb
@@ -54,7 +55,7 @@ auxSdr:
     appliedWindow: Blackman
 
 arduino:
-  active: true
+  active: false
   comPort: /dev/ttyACM0
   baudRate: 9600
   temperatureMonitoring:
@@ -65,7 +66,7 @@ arduino:
       active: true
       upperLimit: 150
       lowerLimit: 135
-      ambientLimit: 40
+      ambientLimit: 45
     
     probeLabels:
     - load_monitoring
@@ -75,7 +76,7 @@ arduino:
   
   switches:
     active: true
-    optimisedObserving: false
+    singleSource: antenna #
     DickeSwitchCycleLength: 120
     switchSourceTargets:
     - antenna

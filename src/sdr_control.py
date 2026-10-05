@@ -17,6 +17,11 @@ AVAILABLE_SDR_FLAGS = ['biasT_ctrl',
                        'iqcorr_ctrl'
                        ]
 
+IQ_FORMAT_DICT = {
+    'CF32': SOAPY_SDR_CF32,
+    'CS16': SOAPY_SDR_CS16
+}
+
 def time_format(t):
     """
     Format a time in seconds into a duration in h/m/s.
@@ -29,14 +34,15 @@ def time_format(t):
 def measure_spectra(sampleIntegrationTime,
                     runLength,
                     centre_frequency,
-                    bandwidth,
+                    sampleRate,
+                    lpfBandwidth,
                     nChannels,
-                    sdrDriver, 
-                    sdrId,
-                    sdrGain,
-                    sdrIFGR,
-                    sdrRFGR,
-                    sdrLabel,
+                    sdrDriver,
+                    combinedGain,
+                    lnaGain,
+                    pgaGain,
+                    tiaGain,
+                    iqFormat,
                     spectrometerMode,
                     nTaps,
                     appliedWindow,
@@ -57,9 +63,11 @@ def measure_spectra(sampleIntegrationTime,
             How long to run the data acquisition for, in seconds.
         centre_frequency (float):
             The centre frequency of the SDR observation, in Hz.
-        bandwidth (float):
-            Bandwidth of the SDR observation, in Hz. Should be one of the 
+        sampleRate (float):
+            sample rate of the SDR observation, in Hz. Should be one of the 
             supported bandwidth values for the SDR.
+        lpfBandwidth (float):
+            Tunable bandwidth of the baseband low pass filters.
         nChannels (int):
             Number of frequency channels to divide the bandwidth into.
         sdrDriver (str):
@@ -67,16 +75,19 @@ def measure_spectra(sampleIntegrationTime,
         sdrId (int):
             ID number of the SDR. Will normally be `0` unless there are 
             multiple SDRs connected.
-        sdrGain (int):
-            WHich gain level to use in the SDR. Note that this may not 
+        combinedGain (int):
+            Total gain level to use in the SDR. Note that this may not 
             correspond directly to a gain in dB, and could even correspond to 
-            and attenuation level.
-        sdrIFGR (int):
-            Gain level integer for the intermediate frequency LNA stage.
-        sdrRFGR (int):
-            Gain level integer for the RF LNA stage.
-        sdrLabel (str):
-            Name to give the SDR, for identification purposes.
+            and attenuation level. Soapy will automatically tune indivudal amplifiers
+            to match.
+        lnaGain (int):
+            Gain level integer for the LNA stage.
+        tiaGain (int):
+                    Gain level integer for the TIA stage.
+        pgaGain (int):
+                    Gain level integer for the PGA stage.
+        iqFormat (str):
+            format of the IQ samples. Defaults to CF32
         spectrometerMode (str):
             Whether to use `fft` or `pfb` channelisation.
         nTaps (int):
@@ -130,18 +141,16 @@ def measure_spectra(sampleIntegrationTime,
         spectrometer_func = spectrum.buffer_to_psd_pfb
         n_spec_points = nChannels * nTaps # no. sample points needed to form spectrum
         n_frames = int(sampleIntegrationTime * bandwidth / (nChannels * nTaps))
-    
-    # Set-up SDR sampling parameters
+
+    # ------------------------------
+    # SoapySDR set-up
+    # ------------------------------
     rx_chan = 0 # only 1 channel on RSP1A
-    sdr = SoapySDR.Device(dict(driver=sdrDriver, label=sdrLabel))
-    sdr.setSampleRate(SOAPY_SDR_RX, rx_chan, bandwidth)
+    sdr = SoapySDR.Device(dict(driver=sdrDriver))
+    sdr.setSampleRate(SOAPY_SDR_RX, rx_chan, sampleRate)
     sdr.setFrequency(SOAPY_SDR_RX, rx_chan, centre_frequency)
-    sdr.setBandwidth(SOAPY_SDR_RX, rx_chan, int(bandwidth))
-    
-    # Calculate frequency channel locations in MHz
-    freqs = np.linspace(-bandwidth/2/1e6 + centre_frequency/1e6, 
-                         bandwidth/2/1e6 + centre_frequency/1e6,
-                         nChannels)
+    # This might be the filter bandwidth.. needs testing
+    sdr.setBandwidth(SOAPY_SDR_RX, rx_chan, int(lpfBandwidth))
     
     # Set settings, e.g. notch filters (some may be ignored; depends on SDR)
     sdr_flags = sdrFlags.strip().replace(" ", "").split(",")
@@ -159,17 +168,32 @@ def measure_spectra(sampleIntegrationTime,
                 print(f"  SDR setting: {flag}=false")
     
     # Set gain mode and settings manually, rather than using AGC
-    sdr.setGainMode(SOAPY_SDR_RX, rx_chan, False) # turn OFF AGC
-    sdr.setGain(SOAPY_SDR_RX, rx_chan, "RFGR", sdrRFGR) # set RF gain
-    sdr.setGain(SOAPY_SDR_RX, rx_chan, "IFGR", sdrIFGR) # set IF gain
+    if sdrDriver is not 'lime':
+        sdr.setGainMode(SOAPY_SDR_RX, rx_chan, False) # turn OFF AGC - legacy
+
+    # gain settings
+    if combinedGain is not None: # combinedGain
+        sdr.setGain(SOAPY_SDR_RX, rx_chan, combinedGain)
+    else:
+        sdr.setGain(SOAPY_SDR_RX, rx_chan, "LNA", lnaGain)
+        sdr.setGain(SOAPY_SDR_RX, rx_chan, "TIA", tiaGain)
+        sdr.setGain(SOAPY_SDR_RX, rx_chan, "PGA", pgaGain)
     if verbose:
-        print("Current RF Gain:", sdr.getGain(SOAPY_SDR_RX, rx_chan, "RFGR"))
-        print("Current IF Gain:", sdr.getGain(SOAPY_SDR_RX, rx_chan, "IFGR"))
-    
-    # Set gain
-    if sdrGain is not None:
-        sdr.setGain(SOAPY_SDR_RX, rx_chan, sdrGain)
-    rxStream = sdr.setupStream(SOAPY_SDR_RX, SOAPY_SDR_CF32, [rx_chan])
+        print("Current LNA Gain:", sdr.getGain(SOAPY_SDR_RX, rx_chan, "LNA"))
+        print("Current LNA Gain:", sdr.getGain(SOAPY_SDR_RX, rx_chan, "TIA"))
+        print("Current LNA Gain:", sdr.getGain(SOAPY_SDR_RX, rx_chan, "PGA"))
+
+
+    # get IQ format
+    try:
+        stream_format = IQ_FORMAT_DICT[iqFormat]
+    except:
+        stream_format = SOAPY_SDR_CF32
+
+    # stream
+    rxStream = sdr.setupStream(SOAPY_SDR_RX,
+                               stream_format,
+                               [rx_chan])
     
     # Test-start the stream
     status = sdr.activateStream(rxStream) # start streaming
@@ -184,11 +208,11 @@ def measure_spectra(sampleIntegrationTime,
                 % (sdr.getSampleRate(SOAPY_SDR_RX, rx_chan) / 1e6))
         print("  Frequency:          %6.4f MHz" \
                 % (sdr.getFrequency(SOAPY_SDR_RX, rx_chan) / 1e6))
-        print("  Bandwidth:          %6.4f MHz" \
+        print("  Low Pass Filter Bandwidth:          %6.4f MHz" \
                 % (sdr.getBandwidth(SOAPY_SDR_RX, rx_chan) / 1e6))
         print("  Current gain:      ", sdr.getGain(SOAPY_SDR_RX, rx_chan))
-        print("  RF gain idx:       ", sdr.readSetting("rfgain_sel"))
-        print("  Gain mode (AGC):   ", sdr.getGainMode(SOAPY_SDR_RX, rx_chan))
+        # print("  RF gain idx:       ", sdr.readSetting("rfgain_sel"))
+        # print("  Gain mode (AGC):   ", sdr.getGainMode(SOAPY_SDR_RX, rx_chan))
         print("")
     
     sdr.deactivateStream(rxStream) # stop streaming after test
@@ -209,12 +233,17 @@ def measure_spectra(sampleIntegrationTime,
     daq_status = np.zeros(reads_per_sample, dtype=int)
     
     # Reshaped array containing a full set of frames for the time sample
-    frame_set = np.zeros((n_frames, n_spec_points), dtype=np.complex64) 
-    
+    frame_set = np.zeros((n_frames, n_spec_points), dtype=np.complex64)
+
+    # Get channel frequencies in MHz
+    freqs = np.linspace(-sampleRate/2/1e6 + centre_frequency/1e6,
+                             sampleRate/2/1e6 + centre_frequency/1e6,
+                             nChannels)
     # Lists for storing outputs
     waterfall_spectra = []
     times = []
     adc_stats = []
+    board_temperatures = []
     
     # Prepare for streaming the data (assumes the previous gain values are OK)
     status = sdr.activateStream(rxStream)
@@ -268,6 +297,10 @@ def measure_spectra(sampleIntegrationTime,
                           frame_set.real.max(),
                           frame_set.imag.min(),
                           frame_set.imag.max()))
+
+        # read board temperature
+        board_temp_i = float(sdr.readSensor("lms7_temp"))
+        board_temperatures.append(board_temp_i)
         
         # Zero the buffer ready for next sample
         sample_buffer[:] = 0.
@@ -280,6 +313,7 @@ def measure_spectra(sampleIntegrationTime,
             print(f"\tADC range (I): {adc_i_min:.5f} -- {adc_i_max:.5f}")
             print(f"\tADC range (Q): {adc_q_min:.5f} -- {adc_q_max:.5f}")
             print("\tRemaining: %s" % time_format(t_f - t))
+            print(f"SDR Board Temperature: {board_temp_i:.2f} (C)")
         
         # Do a partial save of a block of time samples if needed
         if partial_save_block is not None:
@@ -308,8 +342,8 @@ def measure_spectra(sampleIntegrationTime,
     # Convert waterfall and metadata into arrays
     waterfall_spectra = np.array(waterfall_spectra)
     times = np.array(times)
-    
-    return waterfall_spectra, times, freqs, np.array(adc_stats)
+    board_temperatures = np.array(board_temperatures)
+    return waterfall_spectra, times, freqs, np.array(adc_stats), board_temperatures
 
 
 def main():
@@ -344,27 +378,28 @@ def main():
     time.sleep(params['delay'])
     
     # Run the data acquisition
-    waterfall_spectra, times, freqs, adc_stats = \
+    waterfall_spectra, times, freqs, adc_stats, board_temperatures = \
             measure_spectra(
-                      sampleIntegrationTime=params['sampleIntegrationTime'],
-                      runLength = runLength,
-                      centre_frequency = params['centreFrequency'],
-                      bandwidth = params['bandwidth'],
-                      nChannels = params['nChannels'],
-                      sdrDriver = params['sdrDriver'],
-                      sdrId = params['sdrId'],
-                      sdrGain=params['sdrGain'],
-                      sdrRFGR=params['sdrRFGR'],
-                      sdrIFGR=params['sdrIFGR'],
-                      sdrLabel=params['sdrLabel'],
-                      sdrFlags=params['sdrFlags'],
-                      spectrometerMode=params['spectrometerMode'],
-                      nTaps = params['nTaps'],
-                      appliedWindow = params['appliedWindow'],
-                      obsCachePath=params['obsCachePath'],
-                      #partial_save_block=params['partialSaveBlock'],
-                      #FIXME sort out yaml None passed here
-                      )
+                sampleRate=params['sampleRate'],
+                lpfBandwidth=params['lpfBandwidth'],
+                combinedGain=params['combinedGain'],
+                lnaGain=params['lnaGain'],
+                pgaGain=params['pgaGain'],
+                tiaGain=params['tiaGain'],
+                iqFormat=params['iqFormat'],
+                sampleIntegrationTime=params['sampleIntegrationTime'],
+                runLength = runLength,
+                centre_frequency = params['centreFrequency'],
+                nChannels = params['nChannels'],
+                sdrDriver = params['sdrDriver'],
+                sdrFlags=params['sdrFlags'],
+                spectrometerMode=params['spectrometerMode'],
+                nTaps = params['nTaps'],
+                appliedWindow = params['appliedWindow'],
+                obsCachePath=params['obsCachePath'],
+                # partial_save_block=params['partialSaveBlock'],
+                # #FIXME sort out yaml None passed here
+                )
     
     # Save the full set of results to a compressed numpy file
     obsCachePath = params['obsCachePath']
@@ -373,7 +408,8 @@ def main():
                         waterfall=waterfall_spectra,
                         times=times,
                         freqs=freqs,
-                        adc_stats=adc_stats)
+                        adc_stats=adc_stats,
+                        board_temperatures=board_temperatures)
     
     print('SDR data stored')
 
