@@ -155,6 +155,7 @@ def return_arduino_params(yaml_path):
     switchSourceTargets = obs_config['arduino']['switches']['switchSourceTargets']
     dickeSwitchCycle = obs_config['arduino']['switches']['dickeSwitchCycle']
     DickeSwitchCycleLength = obs_config['arduino']['switches']['DickeSwitchCycleLength']
+    singleSource = obs_config['arduino']['switches']['singleSource']
 
     # temperature control
     temperatureControlStatus = obs_config['arduino']['temperatureMonitoring']['temperatureControl']['active']
@@ -178,7 +179,8 @@ def return_arduino_params(yaml_path):
             'temperatureControlStatus':temperatureControlStatus,
             'temperatureControlLowerLimit':temperatureControlLowerLimit,
             'temperatureControlUpperLimit':temperatureControlUpperLimit,
-            'temperatureControlAmbientLimit':temperatureControlAmbientLimit}
+            'temperatureControlAmbientLimit':temperatureControlAmbientLimit,
+            'singleSource':singleSource}
     
 def return_cache_params(yaml_path):
     with open(yaml_path,'r') as f:

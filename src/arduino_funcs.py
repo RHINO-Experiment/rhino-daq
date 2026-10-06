@@ -216,6 +216,38 @@ def general_observing(arduino: Arduino,
     return temperatures, temperature_times, switch_states, switch_times
 
 
+def single_source_observe(arduino: Arduino,
+                          runLength:float,
+                          temperature_cadence,
+                          target):
+    """
+    Single source observing mode.
+    """
+    t = time.time()
+    temperatures = []
+    temperature_times = []
+    switch_states, switch_times = [], []
+    t_end = t + runLength
+    arduino.set_switch_state(target)
+    switch_states.append(target)
+    switch_times.append(t)
+    arduino.turn_on_heater() # turn on heater if active
+    while t < t_end:
+        t = time.time()
+        temp = arduino.read_temp()
+        temperatures.append(temp)
+        temperature_times.append(t)
+        time.sleep(temperature_cadence)
+    arduino.turn_off_heater()
+    temperatures = np.array(temperatures)
+    temperature_times = np.array(temperature_times)
+    switch_times = np.array(switch_times)
+    switch_states = np.array(switch_states)
+    arduino.close()
+
+    return temperatures, temperature_times, switch_states, switch_times
+
+
 ####
 def gcr_continous_arduino_operation(arduino: Arduino,
                                     runLength:float,

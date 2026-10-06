@@ -47,7 +47,25 @@ def main():
                                            temp_upper_limit=params['temperatureControlUpperLimit'],
                                            temp_ambient_limit=params['temperatureControlAmbientLimit'])
     try:
-        if temp_monitoring_status and switch_status:
+        if params['singleSource'] is not None:
+            # Single Source Observing mode
+            temperatures, temperature_times, \
+                switch_states, switch_times = arduino_funcs.single_source_observe(
+                    arduino=arduino_object,
+                    runLength=params['runLength'],
+                    temperature_cadence=params['temp_cadence'],
+                    target=params['singleSource'])
+            np.savez_compressed(f'{obsCachePath}/temperature_data.npz',
+                                temperatures=temperatures,
+                                temperature_times=temperature_times)
+            np.savez_compressed(f'{obsCachePath}/switch_data.npz',
+                                switch_states=switch_states,
+                                switch_times=switch_times)
+            print('Arduino Function Finished and Cached')
+            return
+            
+
+        elif temp_monitoring_status and switch_status:
             print('|| arduino_control.py Begining General Observing ||')
             temperatures, temperature_times, \
             switch_states, switch_times = arduino_funcs.general_observing(arduino=arduino_object,

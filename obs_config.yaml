@@ -76,7 +76,7 @@ arduino:
   
   switches:
     active: true
-    singleSource: antenna #
+    singleSource: #
     DickeSwitchCycleLength: 120
     switchSourceTargets:
     - antenna
